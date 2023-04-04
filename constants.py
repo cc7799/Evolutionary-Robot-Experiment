@@ -15,3 +15,4 @@ MOTOR_JOINT_RANGE = 0.2
 
 # Other constants
 gravity = {"x": 0, "y": 0, "z": -9.8}
+joint_axes = {"x": "1 0 0", "y": "0 1 0", "z": "0 0 1"}

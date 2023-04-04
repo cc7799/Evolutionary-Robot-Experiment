@@ -63,6 +63,7 @@ class Robot:
         """
         for joint_name in pyrosim.jointNamesToIndices:
             self.motors[joint_name] = Motor(joint_name)
+        pass
 
     def act(self):
         """

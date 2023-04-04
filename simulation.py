@@ -39,11 +39,12 @@ class Simulation:
 
             p.stepSimulation()
 
-            self.robot.sense(time_step)
+            if sc.SIMULATE:
+                self.robot.sense(time_step)
 
-            self.robot.think()
+                self.robot.think()
 
-            self.robot.act()
+                self.robot.act()
 
     def get_fitness(self):
         """

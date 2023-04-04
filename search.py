@@ -18,8 +18,8 @@ def get_sim_details():
     return generations, population_size
 
 
-def run_sim(generations: int, population: int, parallel: bool):
-    sim = Hillclimber(generations, population, parallel)
+def run_sim(generations: int, population: int, num_legs: int, parallel: bool):
+    sim = Hillclimber(generations, population, num_legs, parallel)
 
     sim.evolve()
 
@@ -37,4 +37,4 @@ def run_sim(generations: int, population: int, parallel: bool):
 
 if __name__ == "__main__":
     num_generations, pop_size = get_sim_details()
-    run_sim(num_generations, pop_size, parallel=sc.RUN_SIM_IN_PARALLEL)
+    run_sim(num_generations, pop_size, num_legs=50, parallel=sc.RUN_SIM_IN_PARALLEL)

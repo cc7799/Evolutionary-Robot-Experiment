@@ -146,6 +146,7 @@ def Send_Joint(name,parent,child,type,position,jointAxis: str):
 def Send_Motor_Neuron(name,jointName):
 
     f.write('    <neuron name = "' + str(name) + '" type = "motor"  jointName = "' + jointName + '" />\n')
+    pass
 
 def Send_Sensor_Neuron(name,linkName):
 

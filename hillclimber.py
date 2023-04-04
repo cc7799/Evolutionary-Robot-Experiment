@@ -31,12 +31,13 @@ class Hillclimber:
     """
     Simulates and evolves a set of quadruped robots
     """
-    def __init__(self, num_generations: int, population_size: int, parallel: bool):
+    def __init__(self, num_generations: int, population_size: int, num_legs: int, parallel: bool):
         delete_leftover_files()
 
         self.num_generations = num_generations
         self.population_size = population_size
         self.parallel = parallel
+        self.num_legs = num_legs
 
         self.next_available_id = 0
         self.generation = 0
@@ -46,7 +47,7 @@ class Hillclimber:
 
         # Create initial population
         for i in range(self.population_size):
-            self.parents[i] = Solution(self.get_next_available_id())
+            self.parents[i] = Solution(self.get_next_available_id(), self.num_legs)
 
     def evolve(self):
         """

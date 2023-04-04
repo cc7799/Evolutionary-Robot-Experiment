@@ -2,7 +2,7 @@ import numpy
 import os
 import random
 import time
-from typing import List
+from typing import List, Dict
 
 import pyrosim.pyrosim as pyrosim
 import safe_file_access as sfa
@@ -15,8 +15,10 @@ class Solution:
     """
     Data and controls for creating and simulation a single solution
     """
-    def __init__(self, solution_id):
+    def __init__(self, solution_id: int, num_legs: int):
         self.solution_id = solution_id
+        assert(num_legs % 2 == 0)
+        self.num_legs = num_legs
 
         # Generate a random matrix to store neuron weights normalized to [-1, 1]
         self.weights = (numpy.random.rand(c.NUM_SENSOR_NEURONS, c.NUM_MOTOR_NEURONS) * 2) - 1
@@ -32,6 +34,7 @@ class Solution:
         :param show_gui: Whether the graphical representation of the simulation should be shown
         :param parallel: Whether the simulation should start as a separate process
         """
+
         self.create_world()
         self.create_body()
         self.create_brain()
@@ -80,84 +83,161 @@ class Solution:
         pyrosim.End()
 
     def create_body(self):
-        """
-        Initializes the robot's links, joints, and motors
-        """
-        body_dims = {"length": 1, "width": 1, "height": 1}
-        leg_dims = {"short_dim": 0.2, "long_dim": 1}
-        joint_axes = {"x": "1 0 0", "y": "0 1 0", "z": "0 0 1"}
+        def get_joint_x_pos():
+            joint_x: Dict = {}
 
-        x = 0
-        y = 0
-        z = body_dims["height"]
+            half_gap_length = gap_length / 2
+            half_leg_length = leg_length / 2
+
+            if legs_per_side % 2 == 0:
+                legs_per_region = int(legs_per_side / 2)
+                positive_region_legs = leg_types[0: legs_per_region]
+                negative_region_legs = leg_types[legs_per_region:]
+
+                next_pos_leg_pos = half_gap_length
+                for positive_leg in positive_region_legs:
+                    joint_x[positive_leg] = next_pos_leg_pos + half_leg_length
+                    next_pos_leg_pos += (leg_length + gap_length)
+
+                next_neg_leg_pos = -1 * half_gap_length
+                for negative_leg in negative_region_legs:
+                    joint_x[negative_leg] = next_neg_leg_pos - half_leg_length
+                    next_neg_leg_pos -= (leg_length + gap_length)
+
+            else:
+                # There will be a leg directly in the middle
+                legs_per_region = int(legs_per_side / 2)
+                center_leg = leg_types[legs_per_region]
+                joint_x[center_leg] = 0
+
+                positive_region_legs = leg_types[0: legs_per_region]
+                negative_region_legs = leg_types[(legs_per_region + 1):]
+
+                next_pos_leg_pos = (leg_length / 2) + gap_length
+                for positive_leg in positive_region_legs:
+                    joint_x[positive_leg] = next_pos_leg_pos + half_leg_length
+                    next_pos_leg_pos += (leg_length + gap_length)
+
+                next_neg_leg_pos = -1 * ((leg_length / 2) + gap_length)
+                for negative_leg in negative_region_legs:
+                    joint_x[negative_leg] = next_neg_leg_pos - half_leg_length
+                    next_neg_leg_pos -= (leg_length + gap_length)
+
+            return joint_x
+
+        num_legs = self.num_legs
+
+        leg_length = 0.2
+
+        legs_per_side = int(num_legs / 2)
+
+        gap_length = 2 * leg_length
+
+        torso_x_length = (gap_length * (legs_per_side + 1)) + (leg_length * legs_per_side)
+
+        leg_types = []
+        for i in range(1, (legs_per_side + 1)):
+            leg_types.append(str(i))
+
+        body_dim = {"torso": {"x": torso_x_length, "y": 1, "z": 1},
+                    "upper_leg": {"x": 0.2, "y": 1, "z": 0.2},
+                    "lower_leg": {"x": 0.2, "y": 0.2, "z": 1}}
+
+        torso_pos = {"x": 0, "y": 0, "z": 1}
+
+        leg_pos = {
+            "upper": {
+                "left": {"x": 0, "y": -0.5, "z": 0},
+                "right": {"x": 0, "y": 0.5, "z": 0}},
+            "lower": {
+                "left": {"x": 0, "y": 0, "z": -0.5},
+                "right": {"x": 0, "y": 0, "z": -0.5}}}
+
+        joint_x_pos = get_joint_x_pos()
+
+        joints_pos: Dict = {"torso_upper": {},
+
+                            "upper_lower": {
+                                "left": {"x": 0, "y": -1, "z": 0},
+                                "right": {"x": 0, "y": 1, "z": 0}}}
+
+        for leg in leg_types:
+            joints_pos["torso_upper"][leg] = {"left":  {"x": joint_x_pos[leg], "y": -0.5, "z": 1},
+                                              "right": {"x": joint_x_pos[leg], "y":  0.5, "z": 1}}
+
+        rotation_axes = {"upper": c.joint_axes["x"],
+                         "lower": c.joint_axes["y"]}
 
         sfa.safe_start_urdf(c.ROBOT_FILENAME)
 
-        # Torso
-        pyrosim.Send_Cube(name="torso", pos=[x, y, z],
-                          size=[body_dims["length"], body_dims["width"], body_dims["height"]])
-
-        # Front Leg
-        pyrosim.Send_Cube(name="frontLeg", pos=[0, 0.5, 0],
-                          size=[leg_dims["short_dim"], leg_dims["long_dim"], leg_dims["short_dim"]])
-
-        pyrosim.Send_Joint(name="torso_frontLeg", parent="torso", child="frontLeg",
-                           type="revolute", position=[0, 0.5, 1],
-                           jointAxis=joint_axes["x"])
-
-        pyrosim.Send_Cube(name="frontLowerLeg", pos=[0, 0, -0.5],
-                          size=[leg_dims["short_dim"], leg_dims["short_dim"], leg_dims["long_dim"]])
-
-        pyrosim.Send_Joint(name="frontLeg_frontLowerLeg", parent="frontLeg", child="frontLowerLeg",
-                           type="revolute", position=[0, 1, 0],
-                           jointAxis=joint_axes["x"])
-
-        # Back Leg
-        pyrosim.Send_Cube(name="backLeg", pos=[0, -0.5, 0],
-                          size=[leg_dims["short_dim"], leg_dims["long_dim"], leg_dims["short_dim"]])
-
-        pyrosim.Send_Joint(name="torso_backLeg", parent="torso", child="backLeg",
-                           type="revolute", position=[0, -0.5, 1],
-                           jointAxis=joint_axes["x"])
-
-        pyrosim.Send_Cube(name="backLowerLeg", pos=[0, 0, -0.5],
-                          size=[leg_dims["short_dim"], leg_dims["short_dim"], leg_dims["long_dim"]])
-
-        pyrosim.Send_Joint(name="backLeg_backLowerLeg", parent="backLeg", child="backLowerLeg",
-                           type="revolute", position=[0, -1, 0],
-                           jointAxis=joint_axes["x"])
-
-        # Left Leg
-        pyrosim.Send_Cube(name="leftLeg", pos=[-0.5, 0, 0],
-                          size=[leg_dims["long_dim"], leg_dims["short_dim"], leg_dims["short_dim"]])
-
-        pyrosim.Send_Joint(name="torso_leftLeg", parent="torso", child="leftLeg",
-                           type="revolute", position=[-0.5, 0, 1],
-                           jointAxis=joint_axes["y"])
-
-        pyrosim.Send_Cube(name="leftLowerLeg", pos=[0, 0, -0.5],
-                          size=[leg_dims["short_dim"], leg_dims["short_dim"], leg_dims["long_dim"]])
-
-        pyrosim.Send_Joint(name="leftLeg_leftLowerLeg", parent="leftLeg", child="leftLowerLeg",
-                           type="revolute", position=[-1, 0, 0],
-                           jointAxis=joint_axes["y"])
-
-        # Right Leg
-        pyrosim.Send_Cube(name="rightLeg", pos=[0.5, 0, 0],
-                          size=[leg_dims["long_dim"], leg_dims["short_dim"], leg_dims["short_dim"]])
-
-        pyrosim.Send_Joint(name="torso_rightLeg", parent="torso", child="rightLeg",
-                           type="revolute", position=[0.5, 0, 1],
-                           jointAxis=joint_axes["y"])
-
-        pyrosim.Send_Cube(name="rightLowerLeg", pos=[0, 0, -0.5],
-                          size=[leg_dims["short_dim"], leg_dims["short_dim"], leg_dims["long_dim"]])
-
-        pyrosim.Send_Joint(name="rightLeg_rightLowerLeg", parent="rightLeg", child="rightLowerLeg",
-                           type="revolute", position=[1, 0, 0],
-                           jointAxis=joint_axes["y"])
+        self.create_torso(dim=body_dim["torso"], pos=torso_pos)
+        self.create_legs(leg_types=leg_types,
+                         body_dim=body_dim,
+                         leg_pos=leg_pos, joints_pos=joints_pos,
+                         rotation_axes=rotation_axes)
 
         pyrosim.End()
+
+    def create_torso(self, dim, pos):
+        pyrosim.Send_Cube(name="torso",
+                          pos=[pos["x"], pos["y"], pos["z"]],
+                          size=[dim["x"], dim["y"], dim["z"]])
+        self.link_names.append("torso")
+
+    def create_legs(self, leg_types: List,
+                    body_dim: Dict, leg_pos: Dict, joints_pos: Dict,
+                    rotation_axes: Dict):
+
+        sides = ["left", "right"]
+
+        for side in sides:
+            for leg_type in leg_types:
+                upper_leg_name = leg_type + side.capitalize() + "Leg"
+                lower_leg_name = leg_type + side.capitalize() + "LowerLeg"
+
+                self.create_upper_leg(name=upper_leg_name,
+                                      dim=body_dim["upper_leg"],
+                                      pos=leg_pos["upper"][side],
+                                      joint_pos=joints_pos["torso_upper"][leg_type][side],
+                                      joint_axis=rotation_axes["upper"])
+
+                self.create_lower_leg(name=lower_leg_name, parent_name=upper_leg_name,
+                                      dim=body_dim["lower_leg"],
+                                      pos=leg_pos["lower"][side],
+                                      joint_pos=joints_pos["upper_lower"][side],
+                                      joint_axis=rotation_axes["lower"])
+
+    def create_upper_leg(self, name: str, dim: Dict, pos: Dict, joint_pos: dict, joint_axis: str):
+        pyrosim.Send_Cube(name=name,
+                          pos=[pos["x"], pos["y"], pos["z"]],
+                          size=[dim["x"], dim["y"], dim["z"]])
+        self.link_names.append(name)
+
+        joint_name = "torso_" + name
+        pyrosim.Send_Joint(name=joint_name,
+                           parent="torso", child=name,
+                           type="revolute",
+                           position=[joint_pos["x"],
+                                     joint_pos["y"],
+                                     joint_pos["z"]],
+                           jointAxis=joint_axis)
+        self.joint_names.append(joint_name)
+
+    def create_lower_leg(self, name: str, parent_name, dim: Dict, pos: Dict, joint_pos: dict, joint_axis: str):
+        pyrosim.Send_Cube(name=name,
+                          pos=[pos["x"], pos["y"], pos["z"]],
+                          size=[dim["x"], dim["y"], dim["z"]])
+        self.link_names.append("frontLeftLowerLeg")
+
+        joint_name = parent_name + "_" + name
+        pyrosim.Send_Joint(name=joint_name,
+                           parent=parent_name, child=name,
+                           type="revolute",
+                           position=[joint_pos["x"],
+                                     joint_pos["y"],
+                                     joint_pos["z"]],
+                           jointAxis=joint_axis)
+        self.joint_names.append("frontLeg_frontLowerLeg")
 
     def create_brain(self):
         """
@@ -167,6 +247,32 @@ class Solution:
         sfa.safe_start_neural_network(brain_filename)
 
         # Neurons #
+        # current_neuron_name: int = 0
+        # for link_name in self.link_names:
+        #     pyrosim.Send_Sensor_Neuron(name=current_neuron_name, linkName=link_name)
+        #     current_neuron_name += 1
+        #
+        # for joint_name in self.joint_names:
+        #     pyrosim.Send_Motor_Neuron(name=current_neuron_name, jointName=joint_name)
+        #     current_neuron_name += 1
+
+        pass
+        # pyrosim.Send_Motor_Neuron(name=current_neuron_name, jointName="torso_frontLeg")
+        # current_neuron_name += 1
+        # pyrosim.Send_Motor_Neuron(name=current_neuron_name, jointName="frontLeg_frontLowerLeg")
+        # current_neuron_name += 1
+        # pyrosim.Send_Motor_Neuron(name=current_neuron_name, jointName="torso_backLeg")
+        # current_neuron_name += 1
+        # pyrosim.Send_Motor_Neuron(name=current_neuron_name, jointName="backLeg_backLowerLeg")
+        # current_neuron_name += 1
+        # pyrosim.Send_Motor_Neuron(name=current_neuron_name, jointName="torso_leftLeg")
+        # current_neuron_name += 1
+        # pyrosim.Send_Motor_Neuron(name=current_neuron_name, jointName="leftLeg_leftLowerLeg")
+        # current_neuron_name += 1
+        # pyrosim.Send_Motor_Neuron(name=current_neuron_name, jointName="torso_rightLeg")
+        # current_neuron_name += 1
+        # pyrosim.Send_Motor_Neuron(name=current_neuron_name, jointName="rightLeg_rightLowerLeg")
+
         # Sensor Neurons
         pyrosim.Send_Sensor_Neuron(name=0, linkName="torso")
         pyrosim.Send_Sensor_Neuron(name=1, linkName="frontLeg")
@@ -178,7 +284,7 @@ class Solution:
         pyrosim.Send_Sensor_Neuron(name=7, linkName="rightLowerLeg")
         pyrosim.Send_Sensor_Neuron(name=8, linkName="rightLowerLeg")
 
-        # Motor Neurons
+        # # Motor Neurons
         pyrosim.Send_Motor_Neuron(name=9, jointName="torso_frontLeg")
         pyrosim.Send_Motor_Neuron(name=10, jointName="frontLeg_frontLowerLeg")
         pyrosim.Send_Motor_Neuron(name=11, jointName="torso_backLeg")
