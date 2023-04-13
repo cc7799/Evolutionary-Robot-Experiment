@@ -11,7 +11,7 @@ import system_info as sys
 def delete_leftover_files():
     """
     Deletes any fitness or tmp_fitness files that may have been left behind by previous run
-    (leftover files will only exist if previous run glitched)
+    (leftover non-data files will only exist if previous run glitched)
     """
 
     if sys.WINDOWS:
@@ -72,6 +72,8 @@ class Hillclimber:
         self.output_generation_fitness()
 
         self.select()
+
+        self.write_generation_fitness_to_csv()
 
     def spawn(self):
         """
@@ -141,7 +143,8 @@ class Hillclimber:
         :param round_vals: Whether to round the decimal places in the fitness values
         :return: A string representation of the current generation's fitness
         """
-        output = "*** Generation " + str(self.generation + 1) + "/" + str(self.num_generations) + " ***"
+        output = "*** Generation " + str(self.generation + 1) + "/" + str(self.num_generations) \
+                 + " (" + str(self.num_legs) + " legs) ***"
         for i in range(0, len(self.parents)):
             output += "\nSolution " + str(i) + "\n"
             if round_vals:
@@ -181,18 +184,23 @@ class Hillclimber:
         """
         Writes the current generation's fitness to a csv file
         """
+        filename = c.DATA_FOLDER_NAME + "fitness(" + str(self.num_legs) + "_legs).csv"
         if self.generation == 0:
-            output = "generation,solution,parent_fitness,child_fitness\n"
-            with open(c.FITNESS_DATA_CSV, "w") as fileout:
+            output = "generation,highest_fitness,solution,pop_size\n"
+            with open(filename, "w") as fileout:
                 fileout.write(output)
 
-        output = ""
+        max_fitness = self.parents[0].fitness
+        max_fitness_index = 0
+        for i in range(1, len(self.parents)):
+            if self.parents[i].fitness > max_fitness:
+                max_fitness = self.parents[i].fitness
+                max_fitness_index = i
 
-        for i in range(0, len(self.parents)):
-            output += str(self.generation) + "," + str(i) + "," \
-                      + str(self.parents[i].fitness) + "," + str(self.children[i].fitness) + "\n"
+        output = str(self.generation + 1) + "," + str(self.parents[max_fitness_index].fitness) + "," \
+            + str(max_fitness_index) + "," + str(self.population_size) + "\n"
 
-        with open(c.FITNESS_DATA_CSV, "a") as fileout:
+        with open(filename, "a") as fileout:
             fileout.write(output)
 
     def output_generation_fitness(self):
@@ -203,4 +211,3 @@ class Hillclimber:
             self.print_generation_fitness()
 
         self.write_generation_fitness_to_file()
-        self.write_generation_fitness_to_csv()
