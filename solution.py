@@ -17,7 +17,6 @@ class Solution:
     """
     def __init__(self, solution_id: int, num_legs: int):
         self.solution_id = solution_id
-        assert(num_legs % 2 == 0)
         self.num_legs = num_legs
 
         self.weights: numpy.matrix
@@ -65,6 +64,15 @@ class Solution:
         system_call += "\"" + si.PROJECT_FILEPATH + fitness_filename + "\""
 
         os.system(system_call)
+
+    def show_solution(self, solution_index: int):
+        self.create_world()
+        self.create_body()
+
+        weights_filename = c.WEIGHTS_FOLDER_NAME + "weights" + str(solution_index) + ".npy"
+        self.create_brain(new_brain=False, weights_filename=weights_filename)
+
+        simulate.begin_simulation(show_gui=True, solution_id=self.solution_id)
 
     def set_id(self, solution_id: int):
         """
@@ -242,10 +250,16 @@ class Solution:
                            jointAxis=joint_axis)
         self.joint_names.append(joint_name)
 
-    def create_brain(self):
+    def create_brain(self, new_brain: bool = True, weights_filename: str = None):
         """
         Initializes the robot's neurons
         """
+        def create_synapse_weights():
+            if new_brain:
+                return (numpy.random.rand(num_sensor_neurons, num_motor_neurons) * 2) - 1
+            else:
+                return numpy.load(weights_filename)
+
         brain_filename = c.OBJECTS_FOLDER_NAME + "brain" + str(self.solution_id) + ".nndf"
         sfa.safe_start_neural_network(brain_filename)
 
@@ -264,7 +278,7 @@ class Solution:
         num_motor_neurons = len(self.joint_names)
 
         # Generate a random matrix to store neuron weights normalized to [-1, 1]
-        self.weights = (numpy.random.rand(num_sensor_neurons, num_motor_neurons) * 2) - 1
+        self.weights = create_synapse_weights()
 
         for row in range(num_sensor_neurons):
             for col in range(num_motor_neurons):
@@ -273,6 +287,8 @@ class Solution:
                                      weight=self.weights[row][col])
 
         pyrosim.End()
+
+
 
     def mutate(self):
         """
@@ -305,6 +321,9 @@ class Solution:
 
         return system_call
 
-    def save_weights(self):
-        filename = "weights" + str(self.solution_id) + "(" + str(self.fitness) + ")" + ".npy"
+    def save_weights(self, index: int):
+        with open(c.WEIGHTS_FOLDER_NAME + "num_legs.txt", "w") as fileout:
+            fileout.write(str(self.num_legs))
+
+        filename = c.WEIGHTS_FOLDER_NAME + "weights" + str(index) + ".npy"
         numpy.save(filename, self.weights)

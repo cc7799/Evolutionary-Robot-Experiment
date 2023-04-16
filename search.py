@@ -4,31 +4,34 @@ Searches through a set of solutions to find the most fit
 import time
 
 from hillclimber import Hillclimber
+from solution import Solution
+import constants as c
 import sim_controls as sc
-
-MULTI_SIM = False
-
 
 def get_sim_details(get_legs: bool):
     try:
+        output = []
+
         generations = int(input("Generations: "))
+        output.append(generations)
+
         population_size = int(input("Population Size: "))
+        output.append(population_size)
 
         if get_legs:
             legs = int(input("Number of Legs: "))
             assert (legs % 2 == 0)
-            return generations, population_size, legs
-        else:
-            return generations, population_size
+            output.append(legs)
+
+        return output
+
     except ValueError:
         print("The value must be an integer, please try again.")
         exit()
 
 
-def run_sim(generations: int, population: int, num_legs: int, parallel: bool, show_best: bool):
-    sim = Hillclimber(generations, population, num_legs, parallel)
-
-    sim.evolve()
+def run_sim(simulation: Hillclimber, show_best: bool):
+    simulation.evolve()
 
     if show_best:
         if sc.REQUIRE_KEYPRESS_TO_SHOW_SOLUTION:
@@ -40,17 +43,25 @@ def run_sim(generations: int, population: int, num_legs: int, parallel: bool, sh
                 print(i)
                 time.sleep(1)
 
-        sim.show_best()
+        simulation.show_best()
 
 
 if __name__ == "__main__":
-    if MULTI_SIM:
+    if sc.RUN_WEIGHTS_FILE:
+        with open(c.WEIGHTS_FOLDER_NAME + "num_legs.txt") as filein:
+            num_legs = int(filein.readline())
+
+        sol = Solution(solution_id=0, num_legs=num_legs)
+        sol.show_solution(sc.SOLUTION_TO_RUN)
+
+    elif sc.MULTI_SIM:
         num_generations, pop_size = get_sim_details(get_legs=False)
 
-        leg_tests = [4, 6, 8, 10]
-
-        for num_legs in leg_tests:
-            run_sim(num_generations, pop_size, num_legs=num_legs, parallel=sc.RUN_SIM_IN_PARALLEL, show_best=False)
+        for num_legs in sc.LEG_TESTS:
+            sim = Hillclimber(num_generations, pop_size, num_legs, sc.RUN_SIM_IN_PARALLEL)
+            run_sim(sim, show_best=False)
     else:
         num_generations, pop_size, num_legs = get_sim_details(get_legs=True)
-        run_sim(num_generations, pop_size, num_legs=num_legs, parallel=sc.RUN_SIM_IN_PARALLEL, show_best=True)
+
+        sim = Hillclimber(num_generations, pop_size, num_legs, sc.RUN_SIM_IN_PARALLEL)
+        run_sim(sim, show_best=True)

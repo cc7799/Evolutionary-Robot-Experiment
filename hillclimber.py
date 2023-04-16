@@ -11,7 +11,7 @@ import system_info as sys
 def delete_leftover_files():
     """
     Deletes any fitness or tmp_fitness files that may have been left behind by previous run
-    (leftover non-data files will only exist if previous run glitched)
+    (leftover non-weights files will only exist if previous run glitched)
     """
 
     if sys.WINDOWS:
@@ -21,7 +21,9 @@ def delete_leftover_files():
 
     system_calls = [system_call + "\"" + sys.PROJECT_FILEPATH + c.FITNESS_FOLDER_NAME + "fitness*.txt\"",
                     system_call + "\"" + sys.PROJECT_FILEPATH + c.FITNESS_FOLDER_NAME + "tmp*.txt\"",
-                    system_call + "\"" + sys.PROJECT_FILEPATH + c.OBJECTS_FOLDER_NAME + "brain*.nndf\""]
+                    system_call + "\"" + sys.PROJECT_FILEPATH + c.OBJECTS_FOLDER_NAME + "brain*.nndf\"",
+                    system_call + "\"" + sys.PROJECT_FILEPATH + c.WEIGHTS_FOLDER_NAME + "weights*.npy\"",
+                    system_call + "\"" + sys.PROJECT_FILEPATH + c.WEIGHTS_FOLDER_NAME + "num_legs.txt\""]
 
     for system_call in system_calls:
         os.system(system_call)
@@ -32,6 +34,7 @@ class Hillclimber:
     Simulates and evolves a set of quadruped robots
     """
     def __init__(self, num_generations: int, population_size: int, num_legs: int, parallel: bool):
+
         delete_leftover_files()
 
         self.num_generations = num_generations
@@ -114,7 +117,7 @@ class Hillclimber:
         for i in range(0, len(self.parents)):
             if self.children[i].fitness > self.parents[i].fitness:
                 self.parents[i] = self.children[i]
-            self.parents[i].save_weights()
+            self.parents[i].save_weights(index=i)
 
     def show_best(self):
         """
@@ -127,7 +130,7 @@ class Hillclimber:
                 max_fitness = self.parents[i].fitness
                 max_fitness_index = i
 
-        self.parents[max_fitness_index].start_simulation(show_gui=True)
+        self.parents[max_fitness_index].show_solution(solution_index=max_fitness_index)
 
     def get_next_available_id(self) -> int:
         """
