@@ -114,6 +114,7 @@ class Hillclimber:
         for i in range(0, len(self.parents)):
             if self.children[i].fitness > self.parents[i].fitness:
                 self.parents[i] = self.children[i]
+            self.parents[i].save_weights()
 
     def show_best(self):
         """

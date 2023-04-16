@@ -304,3 +304,7 @@ class Solution:
             system_call += " &"
 
         return system_call
+
+    def save_weights(self):
+        filename = "weights" + str(self.solution_id) + "(" + str(self.fitness) + ")" + ".npy"
+        numpy.save(filename, self.weights)

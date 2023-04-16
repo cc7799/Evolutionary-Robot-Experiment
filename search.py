@@ -6,7 +6,7 @@ import time
 from hillclimber import Hillclimber
 import sim_controls as sc
 
-MULTI_SIM = True
+MULTI_SIM = False
 
 
 def get_sim_details(get_legs: bool):
@@ -16,6 +16,7 @@ def get_sim_details(get_legs: bool):
 
         if get_legs:
             legs = int(input("Number of Legs: "))
+            assert (legs % 2 == 0)
             return generations, population_size, legs
         else:
             return generations, population_size

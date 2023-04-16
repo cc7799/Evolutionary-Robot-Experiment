@@ -10,6 +10,17 @@ import constants as c
 import system_info as si
 
 
+def get_joint_type(joint_name: str):
+    parent_link_index = joint_name.index("_")
+
+    parent_link_name = joint_name[0:parent_link_index]
+
+    if parent_link_name == "torso":
+        return "torso"
+    else:
+        return "lower_leg"
+
+
 class Robot:
     """
     A class for controlling a simulated robot
@@ -71,10 +82,18 @@ class Robot:
         """
         for neuronName in self.nn.Get_Neuron_Names():
             if self.nn.Is_Motor_Neuron(neuronName):
-                joint_name = bytes(self.nn.Get_Motor_Neuron_Joint(neuronName), "utf-8")
-                desired_angle = self.nn.Get_Value_Of(neuronName) * c.MOTOR_JOINT_RANGE
+                joint_name = self.nn.Get_Motor_Neuron_Joint(neuronName)
 
-                self.motors[joint_name].set_value(self.robotId, desired_angle)
+                joint_type = get_joint_type(joint_name)
+                if joint_type == "torso":
+                    joint_range = c.TORSO_MOTOR_JOINT_RANGE
+                else:
+                    joint_range = c.LOWER_LEG_MOTOR_JOINT_RANGE
+
+                desired_angle = self.nn.Get_Value_Of(neuronName) * joint_range
+
+                joint_name_bytes = bytes(joint_name, "utf-8")
+                self.motors[joint_name_bytes].set_value(self.robotId, desired_angle)
 
     def think(self):
         """
@@ -86,10 +105,6 @@ class Robot:
         """
         Calculates the robot's fitness and writes it to a file with protection to allow for parallel simulations
         """
-        # state_of_link_0 = p.getLinkState(self.robotId, 0)
-        # pos_of_link_0 = state_of_link_0[0]
-        # x_coord_of_link_0 = pos_of_link_0[0]
-
         x_position = p.getBasePositionAndOrientation(self.robotId)[0][0]
         # x_position = base_position[0]
 

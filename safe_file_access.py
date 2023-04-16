@@ -4,6 +4,7 @@ Simple set of functions to allow for safe file reads and writes for the parallel
 import time
 from typing import List
 
+import pybullet as p
 import pyrosim.pyrosim as pyrosim
 
 
@@ -56,6 +57,18 @@ def safe_start_sdf(filename: str):
     except PermissionError:
         time.sleep(SECONDS_TO_WAIT)
         pyrosim.Start_SDF(filename)
+
+
+def safe_load_sdf(filename: str):
+    """
+    Safely load an sdf file. If start fails, wait, then try again
+    :param filename: The sdf file
+    """
+    try:
+        p.loadSDF(filename)
+    except PermissionError:
+        time.sleep(SECONDS_TO_WAIT)
+        p.loadSDF(filename)
 
 
 def safe_start_urdf(filename: str):
