@@ -10,7 +10,7 @@ class Sensor:
     """
     def __init__(self, link_name: str):
         self.link_name = link_name
-        self.sensor_values = numpy.zeros(sc.NUM_FRAMES)
+        self.sensor_values = numpy.zeros(sc.SIMULATION_CONTROLS["num_frames"])
 
     def get_value(self, time_step: int):
         """

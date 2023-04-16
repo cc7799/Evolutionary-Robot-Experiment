@@ -150,8 +150,9 @@ class Hillclimber:
         for i in range(0, len(self.parents)):
             output += "\nSolution " + str(i) + "\n"
             if round_vals:
-                output += ("Parent: " + str(round(self.parents[i].fitness, sc.FITNESS_ROUND_LENGTH))
-                           + ", Child: " + str(round(self.children[i].fitness, sc.FITNESS_ROUND_LENGTH)))
+                round_length = sc.FITNESS_OUTPUT_CONTROLS["round_length"]
+                output += ("Parent: " + str(round(self.parents[i].fitness, round_length))
+                           + ", Child: " + str(round(self.children[i].fitness, round_length)))
             else:
                 output += ("Parent: " + str(self.parents[i].fitness)
                            + ", Child: " + str(self.children[i].fitness))
@@ -163,7 +164,7 @@ class Hillclimber:
         Prints the current generation's fitness
         """
         output = "\n\n******************************\n"
-        output += self.get_generation_fitness(round_vals=sc.ROUND_FITNESS_OUTPUT)
+        output += self.get_generation_fitness(round_vals=sc.FITNESS_OUTPUT_CONTROLS["round_results"])
         output += "\n******************************\n\n"
 
         print(output)
@@ -211,7 +212,7 @@ class Hillclimber:
         """
         Outputs the current generation's fitness
         """
-        if sc.PRINT_FITNESS_RESULTS:
+        if sc.FITNESS_OUTPUT_CONTROLS["print_results"]:
             self.print_generation_fitness()
 
         self.write_generation_fitness_to_file()

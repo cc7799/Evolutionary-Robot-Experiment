@@ -33,13 +33,13 @@ class Simulation:
         Runs the simulation for the given number of frames
         """
         random.seed()
-        for time_step in range(0, sc.NUM_FRAMES):
+        for time_step in range(0, sc.SIMULATION_CONTROLS["num_frames"]):
             if self.show_gui:
                 time.sleep(1/240)
 
             p.stepSimulation()
 
-            if sc.SIMULATE:
+            if sc.SIMULATION_CONTROLS["simulate"]:
                 self.robot.sense(time_step)
 
                 self.robot.think()
