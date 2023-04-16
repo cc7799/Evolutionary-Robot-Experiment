@@ -1,0 +1,103 @@
+---
+title: "Fitness"
+author: "Connor Constantino"
+date: "4/12/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+pacman::p_load(tidyverse, ggplot2)
+```
+
+## R Markdown
+
+
+
+```{r read_data}
+four_legs  <- read.csv("fitness(4_legs).csv")[c(-3, -4)]
+
+six_legs   <- read.csv("fitness(6_legs).csv")[c(-3, -4)]
+
+eight_legs <- read.csv("fitness(8_legs).csv")[c(-3, -4)]
+
+ten_legs   <- read.csv("fitness(10_legs).csv")[c(-3, -4)]
+
+
+all_data1 <- merge(four_legs, six_legs,   by = "generation", 
+                  suffixes = c("_four", "_six"))
+all_data2 <- merge(eight_legs,  ten_legs, by = "generation",
+                  suffixes = c("_eight", "_ten"))
+all_data <- merge(all_data1,  all_data2,   by = "generation")
+
+all_data <- as_tibble(all_data)
+
+all_data <- all_data %>%  rename(
+  Four = highest_fitness_four,
+  Six = highest_fitness_six,
+  Eight = highest_fitness_eight,
+  Ten = highest_fitness_ten)
+
+test <- all_data %>%
+  pivot_longer(names_to = c("num_legs"),
+               values_to = c("fitness"),
+               c("Four", "Six", "Eight", "Ten"))
+
+
+```
+
+```{r create_plot}
+line_size <- 2
+colors <- c("red", "blue", "hotpink", "green")
+
+# fitness_plot <- 
+#   ggplot(data = all_data,
+#          mapping = aes(x = generation)) +
+#   
+#   geom_line(aes(y = highest_fitness_four),
+#             color = colors[1],
+#             size = line_size) +
+#   
+#   geom_line(aes(y = highest_fitness_six),
+#             color = colors[2],
+#             size = line_size) +
+#   
+#   geom_line(aes(y = highest_fitness_eight),
+#             color = colors[3],
+#             size = line_size) +
+#   
+#   geom_line(aes(y = highest_fitness_ten),
+#             color = colors[4],
+#             size = line_size) +
+#   
+#   labs(x = "Generation",
+#        y = "Fitness",
+#        title = "Fitness Over Time of Robots with Varying Numbers of Legs")
+
+fitness_plot <- 
+  ggplot(data = test,
+         aes(x = generation,
+             y = fitness,
+             group = num_legs,
+             color = num_legs))+
+  
+  geom_line(size = line_size) +
+  
+  labs(x = "Generation",
+       y = "Fitness",
+       title = "Fitness Over Time of Robots with Varying Numbers of Legs") +
+  
+  labs(color = "Number of Legs") +
+  
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    legend.position = "bottom",
+    legend.title = element_text(face = "bold")) +
+  
+  scale_color_manual(values = c("red", "blue", "green", "brown"))
+  
+
+fitness_plot
+```
+
