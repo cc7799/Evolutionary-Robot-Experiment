@@ -6,7 +6,6 @@ OBJECTS_FOLDER_NAME = "objects\\"
 
 WORLD_FILENAME = OBJECTS_FOLDER_NAME + "world.sdf"
 ROBOT_FILENAME = OBJECTS_FOLDER_NAME + "body.urdf"
-FITNESS_DATA_FILENAME = DATA_FOLDER_NAME + "fitness.txt"
 
 
 # Robot controls

@@ -11,7 +11,7 @@ import system_info as sys
 def delete_leftover_files():
     """
     Deletes any fitness or tmp_fitness files that may have been left behind by previous run
-    (leftover non-weights files will only exist if previous run glitched)
+    (leftover files will only exist if previous run glitched or was aborted)
     """
 
     if sys.WINDOWS:
@@ -21,9 +21,7 @@ def delete_leftover_files():
 
     system_calls = [system_call + "\"" + sys.PROJECT_FILEPATH + c.FITNESS_FOLDER_NAME + "fitness*.txt\"",
                     system_call + "\"" + sys.PROJECT_FILEPATH + c.FITNESS_FOLDER_NAME + "tmp*.txt\"",
-                    system_call + "\"" + sys.PROJECT_FILEPATH + c.OBJECTS_FOLDER_NAME + "brain*.nndf\"",
-                    system_call + "\"" + sys.PROJECT_FILEPATH + c.WEIGHTS_FOLDER_NAME + "weights*.npy\"",
-                    system_call + "\"" + sys.PROJECT_FILEPATH + c.WEIGHTS_FOLDER_NAME + "num_legs.txt\""]
+                    system_call + "\"" + sys.PROJECT_FILEPATH + c.OBJECTS_FOLDER_NAME + "brain*.nndf\""]
 
     for system_call in system_calls:
         os.system(system_call)
@@ -177,11 +175,13 @@ class Hillclimber:
         output = "******************************\n"
         output += self.get_generation_fitness() + "\n"
 
+        filename = c.DATA_FOLDER_NAME + "fitness(" + str(self.num_legs) + "_legs)" + ".txt"
+
         if self.generation == 0:
-            with open(c.FITNESS_DATA_FILENAME, "w") as fileout:
+            with open(filename, "w") as fileout:
                 fileout.write(output)
         else:
-            with open(c.FITNESS_DATA_FILENAME, "a") as fileout:
+            with open(filename, "a") as fileout:
                 fileout.write(output)
 
     def write_generation_fitness_to_csv(self):

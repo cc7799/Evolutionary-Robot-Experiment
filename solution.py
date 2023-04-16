@@ -15,6 +15,7 @@ class Solution:
     """
     Data and controls for creating and simulation a single solution
     """
+
     def __init__(self, solution_id: int, num_legs: int):
         self.solution_id = solution_id
         self.num_legs = num_legs
@@ -69,7 +70,9 @@ class Solution:
         self.create_world()
         self.create_body()
 
-        weights_filename = c.WEIGHTS_FOLDER_NAME + "weights" + str(solution_index) + ".npy"
+        weights_filename = c.WEIGHTS_FOLDER_NAME + "weights" + str(solution_index) \
+            + "(" + str(self.num_legs) + "_legs)" + ".npy"
+
         self.create_brain(new_brain=False, weights_filename=weights_filename)
 
         simulate.begin_simulation(show_gui=True, solution_id=self.solution_id)
@@ -147,7 +150,7 @@ class Solution:
             leg_types.append(str(i))
 
         body_dimensions = {
-            "torso":     {"x": torso_x_length, "y": 1, "z": 1},
+            "torso": {"x": torso_x_length, "y": 1, "z": 1},
             "upper_leg": {"x": 0.2, "y": 1, "z": 0.2},
             "lower_leg": {"x": 0.2, "y": 0.2, "z": 1}}
 
@@ -165,13 +168,13 @@ class Solution:
 
         joint_positions: Dict = {"torso_upper": {},
                                  "upper_lower": {
-                                    "left": {"x": 0, "y": -1, "z": 0},
-                                    "right": {"x": 0, "y": 1, "z": 0}}}
+                                     "left": {"x": 0, "y": -1, "z": 0},
+                                     "right": {"x": 0, "y": 1, "z": 0}}}
 
         for leg in leg_types:
             joint_positions["torso_upper"][leg] = {
-                "left":  {"x": joint_x_positions[leg], "y": -0.5, "z": 1},
-                "right": {"x": joint_x_positions[leg], "y":  0.5, "z": 1}}
+                "left": {"x": joint_x_positions[leg], "y": -0.5, "z": 1},
+                "right": {"x": joint_x_positions[leg], "y": 0.5, "z": 1}}
 
         rotation_axes = {"upper": c.joint_axes["x"],
                          "lower": c.joint_axes["y"]}
@@ -254,6 +257,7 @@ class Solution:
         """
         Initializes the robot's neurons
         """
+
         def create_synapse_weights():
             if new_brain:
                 return (numpy.random.rand(num_sensor_neurons, num_motor_neurons) * 2) - 1
@@ -288,13 +292,11 @@ class Solution:
 
         pyrosim.End()
 
-
-
     def mutate(self):
         """
         Randomly changes one neuron weight
         """
-        row_to_change = random.randint(0, (len(self.weights)    - 1))
+        row_to_change = random.randint(0, (len(self.weights) - 1))
         col_to_change = random.randint(0, (len(self.weights[0]) - 1))
 
         self.weights[row_to_change][col_to_change] = (random.random() * 2 - 1)
@@ -322,8 +324,7 @@ class Solution:
         return system_call
 
     def save_weights(self, index: int):
-        with open(c.WEIGHTS_FOLDER_NAME + "num_legs.txt", "w") as fileout:
-            fileout.write(str(self.num_legs))
+        weights_filename = c.WEIGHTS_FOLDER_NAME + "weights" + str(index) \
+            + "(" + str(self.num_legs) + "_legs)" + ".npy"
 
-        filename = c.WEIGHTS_FOLDER_NAME + "weights" + str(index) + ".npy"
-        numpy.save(filename, self.weights)
+        numpy.save(weights_filename, self.weights)

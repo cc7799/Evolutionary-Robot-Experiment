@@ -47,12 +47,9 @@ def run_sim(simulation: Hillclimber, show_best: bool):
 
 
 if __name__ == "__main__":
-    if sc.RUN_WEIGHTS_FILE:
-        with open(c.WEIGHTS_FOLDER_NAME + "num_legs.txt") as filein:
-            num_legs = int(filein.readline())
-
-        sol = Solution(solution_id=0, num_legs=num_legs)
-        sol.show_solution(sc.SOLUTION_TO_RUN)
+    if sc.SHOW_SPECIFIC_SOLUTION["show_solution"]:
+        sol = Solution(solution_id=0, num_legs=sc.SHOW_SPECIFIC_SOLUTION["num_legs"])
+        sol.show_solution(sc.SHOW_SPECIFIC_SOLUTION["sol_index"])
 
     elif sc.MULTI_SIM:
         num_generations, pop_size = get_sim_details(get_legs=False)
