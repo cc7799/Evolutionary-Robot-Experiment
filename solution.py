@@ -34,13 +34,34 @@ class Solution:
         :param parallel: Whether the simulation should start as a separate process
         """
 
+        def create_simulate_begin_system_call() -> str:
+            """
+            Creates a system call that runs simulate.py in parallel mode
+            :return: The system call to be run
+            """
+            system_call = "python simulate.py"
+
+            if show_gui:
+                system_call += " GUI"
+            else:
+                system_call += " DIRECT"
+
+            system_call += " " + str(self.solution_id)
+
+            if si.WINDOWS:
+                system_call = "start /B " + system_call
+            else:
+                system_call += " &"
+
+            return system_call
+
         self.create_world()
         self.create_body()
         self.create_brain()
 
         # Run Simulation #
         if parallel:
-            os.system(self.create_simulate_begin_system_call(show_gui))
+            os.system(create_simulate_begin_system_call())
         else:
             simulate.begin_simulation(show_gui=show_gui, solution_id=self.solution_id)
 
@@ -135,6 +156,71 @@ class Solution:
 
             return joint_x
 
+        def create_torso():
+            dimensions = body_dimensions["torso"]
+            positions = torso_position
+
+            pyrosim.Send_Cube(name="torso",
+                              pos=[positions["x"], positions["y"], positions["z"]],
+                              size=[dimensions["x"], dimensions["y"], dimensions["z"]])
+            self.link_names.append("torso")
+
+        def create_legs():
+
+            def create_upper_leg(name: str, dim: Dict, pos: Dict, joint_pos: dict, joint_axis: str):
+                pyrosim.Send_Cube(name=name,
+                                  pos=[pos["x"], pos["y"], pos["z"]],
+                                  size=[dim["x"], dim["y"], dim["z"]])
+                self.link_names.append(name)
+
+                joint_name = "torso_" + name
+                pyrosim.Send_Joint(name=joint_name,
+                                   parent="torso", child=name,
+                                   type="revolute",
+                                   position=[joint_pos["x"],
+                                             joint_pos["y"],
+                                             joint_pos["z"]],
+                                   jointAxis=joint_axis)
+                self.joint_names.append(joint_name)
+
+            def create_lower_leg(name: str, parent_name, dim: Dict, pos: Dict, joint_pos: dict, joint_axis: str):
+                pyrosim.Send_Cube(name=name,
+                                  pos=[pos["x"], pos["y"], pos["z"]],
+                                  size=[dim["x"], dim["y"], dim["z"]])
+                self.link_names.append(name)
+
+                joint_name = parent_name + "_" + name
+                pyrosim.Send_Joint(name=joint_name,
+                                   parent=parent_name, child=name,
+                                   type="revolute",
+                                   position=[joint_pos["x"],
+                                             joint_pos["y"],
+                                             joint_pos["z"]],
+                                   jointAxis=joint_axis)
+                self.joint_names.append(joint_name)
+
+            self.link_names = []
+            self.joint_names = []
+
+            sides = ["left", "right"]
+
+            for side in sides:
+                for leg_type in leg_types:
+                    upper_leg_name = leg_type + side.capitalize() + "Leg"
+                    lower_leg_name = leg_type + side.capitalize() + "LowerLeg"
+
+                    create_upper_leg(name=upper_leg_name,
+                                     dim=body_dimensions["upper_leg"],
+                                     pos=leg_positions["upper"][side],
+                                     joint_pos=joint_positions["torso_upper"][leg_type][side],
+                                     joint_axis=rotation_axes["upper"])
+
+                    create_lower_leg(name=lower_leg_name, parent_name=upper_leg_name,
+                                     dim=body_dimensions["lower_leg"],
+                                     pos=leg_positions["lower"][side],
+                                     joint_pos=joint_positions["upper_lower"][side],
+                                     joint_axis=rotation_axes["lower"])
+
         num_legs = self.num_legs
 
         leg_width = 0.2
@@ -181,77 +267,10 @@ class Solution:
 
         sfa.safe_start_urdf(c.ROBOT_FILENAME)
 
-        self.create_torso(dim=body_dimensions["torso"], pos=torso_position)
-        self.create_legs(leg_types=leg_types,
-                         body_dim=body_dimensions,
-                         leg_pos=leg_positions, joints_pos=joint_positions,
-                         rotation_axes=rotation_axes)
+        create_torso()
+        create_legs()
 
         pyrosim.End()
-
-    def create_torso(self, dim, pos):
-        pyrosim.Send_Cube(name="torso",
-                          pos=[pos["x"], pos["y"], pos["z"]],
-                          size=[dim["x"], dim["y"], dim["z"]])
-        self.link_names.append("torso")
-
-    def create_legs(self, leg_types: List,
-                    body_dim: Dict, leg_pos: Dict, joints_pos: Dict,
-                    rotation_axes: Dict):
-
-        self.link_names = []
-        self.joint_names = []
-
-        sides = ["left", "right"]
-
-        for side in sides:
-            for leg_type in leg_types:
-                upper_leg_name = leg_type + side.capitalize() + "Leg"
-                lower_leg_name = leg_type + side.capitalize() + "LowerLeg"
-
-                self.create_upper_leg(name=upper_leg_name,
-                                      dim=body_dim["upper_leg"],
-                                      pos=leg_pos["upper"][side],
-                                      joint_pos=joints_pos["torso_upper"][leg_type][side],
-                                      joint_axis=rotation_axes["upper"])
-
-                self.create_lower_leg(name=lower_leg_name, parent_name=upper_leg_name,
-                                      dim=body_dim["lower_leg"],
-                                      pos=leg_pos["lower"][side],
-                                      joint_pos=joints_pos["upper_lower"][side],
-                                      joint_axis=rotation_axes["lower"])
-
-    def create_upper_leg(self, name: str, dim: Dict, pos: Dict, joint_pos: dict, joint_axis: str):
-        pyrosim.Send_Cube(name=name,
-                          pos=[pos["x"], pos["y"], pos["z"]],
-                          size=[dim["x"], dim["y"], dim["z"]])
-        self.link_names.append(name)
-
-        joint_name = "torso_" + name
-        pyrosim.Send_Joint(name=joint_name,
-                           parent="torso", child=name,
-                           type="revolute",
-                           position=[joint_pos["x"],
-                                     joint_pos["y"],
-                                     joint_pos["z"]],
-                           jointAxis=joint_axis)
-        self.joint_names.append(joint_name)
-
-    def create_lower_leg(self, name: str, parent_name, dim: Dict, pos: Dict, joint_pos: dict, joint_axis: str):
-        pyrosim.Send_Cube(name=name,
-                          pos=[pos["x"], pos["y"], pos["z"]],
-                          size=[dim["x"], dim["y"], dim["z"]])
-        self.link_names.append(name)
-
-        joint_name = parent_name + "_" + name
-        pyrosim.Send_Joint(name=joint_name,
-                           parent=parent_name, child=name,
-                           type="revolute",
-                           position=[joint_pos["x"],
-                                     joint_pos["y"],
-                                     joint_pos["z"]],
-                           jointAxis=joint_axis)
-        self.joint_names.append(joint_name)
 
     def create_brain(self, new_brain: bool = True, weights_filename: str = None):
         """
@@ -300,28 +319,6 @@ class Solution:
         col_to_change = random.randint(0, (len(self.weights[0]) - 1))
 
         self.weights[row_to_change][col_to_change] = (random.random() * 2 - 1)
-
-    def create_simulate_begin_system_call(self, show_gui) -> str:
-        """
-        Creates a system call that runs simulate.py in parallel mode
-        :param show_gui: Whether the graphical representation of the simulation should be shown
-        :return: The system call to be run
-        """
-        system_call = "python simulate.py"
-
-        if show_gui:
-            system_call += " GUI"
-        else:
-            system_call += " DIRECT"
-
-        system_call += " " + str(self.solution_id)
-
-        if si.WINDOWS:
-            system_call = "start /B " + system_call
-        else:
-            system_call += " &"
-
-        return system_call
 
     def save_weights(self, index: int):
         weights_filename = c.WEIGHTS_FOLDER_NAME + "weights" + str(index) \
