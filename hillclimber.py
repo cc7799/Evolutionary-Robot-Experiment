@@ -164,7 +164,7 @@ class Hillclimber:
             output += get_single_solution_set_fitness(self.parents[i], self.children[i],
                                                       round_results=sc.FITNESS_OUTPUT_CONTROLS["round_length"])
 
-        return output
+           return output
 
     def print_generation_fitness(self):
         """
