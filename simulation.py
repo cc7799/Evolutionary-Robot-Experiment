@@ -1,4 +1,5 @@
 import random
+import sys
 import time
 
 import pybullet
@@ -32,19 +33,24 @@ class Simulation:
         """
         Runs the simulation for the given number of frames
         """
-        random.seed()
-        for time_step in range(0, sc.SIMULATION_CONTROLS["num_frames"]):
-            if self.show_gui:
-                time.sleep(1/240)
+        try:
+            random.seed()
+            for time_step in range(0, sc.SIMULATION_CONTROLS["num_frames"]):
+                if self.show_gui:
+                    time.sleep(1/240)
 
-            p.stepSimulation()
+                p.stepSimulation()
 
-            if sc.SIMULATION_CONTROLS["simulate"]:
-                self.robot.sense(time_step)
+                if sc.SIMULATION_CONTROLS["simulate"]:
+                    self.robot.sense(time_step)
 
-                self.robot.think(current_timestep=time_step, cpg_rate=10)
+                    self.robot.think(current_timestep=time_step, cpg_rate=10)
 
-                self.robot.act()
+                    self.robot.act()
+        # Should only ever occur when the simulation is being run in `show_gui` mode
+        except pybullet.error:
+            print("\n*** You closed the simulation window. Simulation aborted. ***")
+            sys.exit(0)
 
     def get_fitness(self):
         """
