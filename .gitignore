@@ -1,6 +1,7 @@
 ﻿data
 objects
 fitness
+solutions
 output.txt
 system_info.py
 __pycache__
