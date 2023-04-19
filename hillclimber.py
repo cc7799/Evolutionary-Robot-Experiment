@@ -145,19 +145,27 @@ class Hillclimber:
         :param round_vals: Whether to round the decimal places in the fitness values
         :return: A string representation of the current generation's fitness
         """
+        def get_single_solution_set_fitness(parent: Solution, child: Solution, round_results: bool) -> str:
+            if round_results:
+                parent_fitness = str(round(parent.fitness, sc.FITNESS_OUTPUT_CONTROLS["round_length"]))
+                child_fitness = str(round(child.fitness, sc.FITNESS_OUTPUT_CONTROLS["round_length"]))
+            else:
+                parent_fitness = str(parent.fitness)
+                child_fitness = str(child.fitness)
+
+            set_output  = "Parent: " + parent_fitness + " (CPG: " + str(parent.cpg_rate) + "), "
+            set_output += "Child: "  + child_fitness  + " (CPG: " + str(child.cpg_rate)  + ")"
+
+            return set_output
+
         output = "*** Generation " + str(self.generation + 1) + "/" + str(self.num_generations) \
                  + " (" + str(self.num_legs) + " legs) ***"
         for i in range(0, len(self.parents)):
             output += "\nSolution " + str(i) + "\n"
-            if round_vals:
-                round_length = sc.FITNESS_OUTPUT_CONTROLS["round_length"]
-                output += ("Parent: " + str(round(self.parents[i].fitness, round_length))
-                           + ", Child: " + str(round(self.children[i].fitness, round_length)))
-            else:
-                output += ("Parent: " + str(self.parents[i].fitness)
-                           + ", Child: " + str(self.children[i].fitness))
+            output += get_single_solution_set_fitness(self.parents[i], self.children[i],
+                                                      round_results=sc.FITNESS_OUTPUT_CONTROLS["round_length"])
 
-        return output
+           return output
 
     def print_generation_fitness(self):
         """
