@@ -1,6 +1,6 @@
 # Folder Naming
 DATA_FOLDER_NAME = "data\\"
-WEIGHTS_FOLDER_NAME = DATA_FOLDER_NAME + "weights\\"
+SOLUTIONS_FOLDER_NAME = "solutions\\"
 FITNESS_FOLDER_NAME = "fitness\\"
 OBJECTS_FOLDER_NAME = "objects\\"
 
