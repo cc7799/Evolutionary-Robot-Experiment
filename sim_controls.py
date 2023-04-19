@@ -25,6 +25,6 @@ SIMULATE_MULTIPLE_ROBOTS_TYPES = {"active": False,
 # `sol_index`: The index of the solution (the number after 'weights' in the filename)
 # `num_legs`:  The number of legs of the solution you wish to view
 SHOW_SPECIFIC_SOLUTION = {"active": False,
-                          "sol_index": 9,
+                          "sol_index": 0,
                           "num_legs": 4}
 

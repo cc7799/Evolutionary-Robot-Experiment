@@ -320,10 +320,9 @@ class Solution:
 
             self.cpg_rate = random.randint(1, c.MAX_CPG_RATE)
         else:
-            self.weights = numpy.load(weights_filename)
+            self.weights = sfa.safe_numpy_file_load(weights_filename)
 
-            with open(cpg_rate_filename, "r") as filein:
-                self.cpg_rate = int(filein.readline())
+            self.cpg_rate = sfa.safe_file_read(cpg_rate_filename)[0]
 
     def mutate(self):
         """
@@ -341,13 +340,12 @@ class Solution:
     def save_weights(self, index: int):
         weights_filename, cpg_rate_filename = self.create_weights_and_rates_filenames(index)
 
-        numpy.save(weights_filename, self.weights)
+        sfa.safe_numpy_file_save(weights_filename, self.weights)
 
         cpg_rate_filename = c.WEIGHTS_FOLDER_NAME + "cpg_rate" + str(index) \
             + "(" + str(self.num_legs) + "_legs)" + ".txt"
 
-        with open(cpg_rate_filename, "w") as fileout:
-            fileout.write(str(self.cpg_rate))
+        sfa.safe_file_write(cpg_rate_filename, str(self.cpg_rate))
 
     def create_weights_and_rates_filenames(self, index: int):
         weights_filename = c.WEIGHTS_FOLDER_NAME + "weights" + str(index) \
