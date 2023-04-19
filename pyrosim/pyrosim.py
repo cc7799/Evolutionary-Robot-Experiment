@@ -146,11 +146,18 @@ def Send_Joint(name,parent,child,type,position,jointAxis: str):
 def Send_Motor_Neuron(name,jointName):
 
     f.write('    <neuron name = "' + str(name) + '" type = "motor"  jointName = "' + jointName + '" />\n')
-    pass
 
 def Send_Sensor_Neuron(name,linkName):
 
     f.write('    <neuron name = "' + str(name) + '" type = "sensor" linkName = "' + linkName + '" />\n')
+
+def Send_Hidden_Neuron(name):
+
+    f.write('    <neuron name = "' + str(name) + '" type = "hidden" />\n')
+
+def Send_CPG_Neuron(name: int, rate: int):
+
+    f.write('    <neuron name = "' + str(name) + '" type = "cpg" rate = "' + str(rate) + '" />\n')
 
 def Send_Synapse( sourceNeuronName , targetNeuronName , weight ):
 

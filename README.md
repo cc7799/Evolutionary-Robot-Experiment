@@ -26,14 +26,16 @@ This program is written in python and uses the `pybullet` and `pyrosim` python l
 ## Installation & Setup
 ### Prerequisites 
 This project uses the `pybullet` library for running the physics simulations. This library can be installed using 
-`pip3 install pybullet`. A modified version of the `pyrosim` library, used to simplify interactions with `pybullet` was 
-also used. The unmodified version can be found [here](https://github.com/jbongard/pyrosim) and the changes are detailed
-below.
+`pip3 install pybullet`.
 
 `Pybullet` requires the Visual C++ compiler to be installed on the machine. This compiler can be installed through 
 installing Visual Studio, but after installation, Visual Studio is not required to run the program.
 
-Note: This project has only been tested on Windows 10. It should work on other Windows versions as well as mac and 
+A modified version of the `pyrosim` library, used to simplify interactions with `pybullet` was 
+also used. This does not need to be installed. The unmodified version can be found [here](https://github.com/jbongard/pyrosim) and the changes are detailed
+below.
+
+<i>Note:</i> This project has only been tested on Windows 10. It should work on other Windows versions as well as mac and 
 linux, but it has not been tested on those systems.
 
 ### Setup
@@ -48,14 +50,31 @@ the robot.
 ## Changes Made to Pyrosim
 Some changes were made to the base pyrosim code. These changes are detailed below.
 
-1. <u>Added ability to update neuron values</u>
-   - Added function `Update()` to pyrosim/neuralNetwork.py
-   - Added the following functions to pyrosim/neuron.py
+1. <b>Added ability to update neuron values</b>
+   - Added function `Update()` to `pyrosim/neuralNetwork.py`
+   - Added the following functions to `pyrosim/neuron.py`
      - `Update_Sensor_Neuron()`
      - `Update_Hidden_Or_Motor_Neuron(neurons, synapses)`
      - `Allow_Presynaptic_Neuron_To_Influence_Me()`
-2. <u>Added ability to get the value of a neuron</u>
-   - Added function `Get_Value_Of()` to pyrosim/neuralNetwork.py
-3. <u>Added ability to change joint axis of rotation</u>
+2. <b>Added ability to get the value of a neuron</b>
+   - Added function `Get_Value_Of()` to `pyrosim/neuralNetwork.py`
+3. <b>Added ability to change joint axis of rotation</b>
    - `pyrosim/joint.py/Save()` changed to use user specified jointAxis
    - `pyrosim/pyrosim/Joint()` changed to pass user-specified value to joint.Save()
+4. <b>Added ability to add hidden neurons to the neural network</b>
+   - Added function `Send_Hidden_Neuron(name)` to `pyrosim/pyrosim.py` that adds a hidden neuron to the brain file
+5. <b>Added CPG neurons as a special type to make using the CPG neuron simpler</b>
+   1. Creating CPG neurons
+      - Created function `Send_CPG_Neuron()` in `pyrosim/pyrosim.py`
+        - Saves the CPG neuron's name and pulse rate to a neuron entry in the .nndf file
+   2. Detecting and storing if a neuron is a CPG neuron 
+      - Added case for CPG neurons to `determine_type()` in `pyrosim/neuron.py`
+      - Added constant `CPG_NEURON` to `pyrosim/constants.py`
+      - Added function `Is_CPG_Neuron()` to `pyrosim/neuron.py`
+   3. Getting and storing the pulse rate of the cpg
+      - Added field `self.Pulse_Rate` to `pyrosim/neuron.py`
+        - Calculated by new function `self.Determine_Pulse_Rate()` that extracts the pulse rate from the .nndf file
+   4. Updating CPG neurons
+      - Added function `Update_CPG_Neuron()` to `pyrosim/neuron.py`
+        - Sets the value to one every time the current time step in a multiple of the given rate
+      

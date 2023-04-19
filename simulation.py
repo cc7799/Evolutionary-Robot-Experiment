@@ -42,7 +42,7 @@ class Simulation:
             if sc.SIMULATION_CONTROLS["simulate"]:
                 self.robot.sense(time_step)
 
-                self.robot.think()
+                self.robot.think(current_timestep=time_step, cpg_rate=10)
 
                 self.robot.act()
 
