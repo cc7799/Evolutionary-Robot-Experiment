@@ -5,11 +5,18 @@ This was created as a project for the Evolutionary Robotics (CS 3060) course I t
 
 ## Table of Contents
 * [Description](#description)
+  * [Code & Output](#code--output)
+  * [Body & Brain Architecture](#body--brain-architecture)
+  * [Software Used](#software-used)
 * [Installation & Setup](#installation--setup)
+  * [Prerequisites](#prerequisites)
+  * [Setup](#setup)
+  * [Experiment Parameters](#experiment-parameters)
 * [Operation](#operation)
 * [Changes Made to Pyrosim](#changes-made-to-pyrosim)
 
 ## Description
+### Code & Output
 This program allows for the simulation and evolution of robots with varying numbers of legs and with and without a
     Central Pattern Generator (CPG) node. 
 The robots are evolved to maximize the distance walked in a given number of frames.
@@ -18,13 +25,26 @@ The number of generations, population size, number of frames, and other parts of
 After running, the solutions are saved into the `solutions` folder and the fitness values are saved in text and
     csv forms in the `data` folder. The `fitness` and `objects` folders are used to store values during evolution. 
 
-<add video
+A video of the results of 500 generations with a population size of 10 for robots with four, six, and eight legs, 
+    both with and without CPG nodes can be found [here](https://youtu.be/lEm_uFRQmVk).
+Each robot type is shown with no brain, a random brain, an evolved brain without a CPG, and an evolved brain with a CPG, 
+    in that order.
+
+### Body & Brain Architecture
+A robot is composed of a rectangular body and an even number of legs.
+Each leg has an upper and lower part.
+The length of the body is determined by the number of legs.
+
+The brain of the robot is a neural network composed of touch sensor neurons for each leg part and the torso.
+There is a motor neuron for each joint in the robot. 
+Each sensor neuron has a synapse to every motor neuron.
+If active, there is also a Central Pattern Generator (CPG) neuron, that sends a pulse at a regular rate to every motor neuron
 
 ### Software Used
 This program is written in python and uses the `pybullet` and `pyrosim` python libraries.
 
 ## Installation & Setup
-### Prerequisites 
+### Prerequisites
 This project uses the `pybullet` library for running the physics simulations.
 This library can be installed using `pip3 install pybullet`.
 
