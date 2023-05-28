@@ -10,7 +10,7 @@ import system_info as si
 
 def delete_leftover_files():
     """
-    Deletes any fitness or tmp_fitness files that may have been left behind by previous run
+    Deletes any fitness, tmp_fitness, or brain files that may have been left behind by the previous run
     (leftover files will only exist if previous run glitched or was aborted)
     """
 
@@ -33,6 +33,9 @@ class Hillclimber:
     """
     def __init__(self, num_generations: int, population_size: int, num_legs: int, cpg_active: bool, parallel: bool,
                  run_index: int):
+        """
+        Creates a new Hillclimber object and generates a random set of parent solutions
+        """
 
         delete_leftover_files()
 
@@ -67,10 +70,10 @@ class Hillclimber:
 
     def evolve_for_one_generation(self):
         """
-        Performs a single generation evolution
+        Performs a single generation of evolution
         """
         self.spawn()
-        self.mutate()
+        self.mutate_child_solutions()
         self.evaluate(self.children)
 
         self.output_generation_fitness()
@@ -81,13 +84,13 @@ class Hillclimber:
 
     def spawn(self):
         """
-        Creates a child solution for every parent solution
+        Creates a copy of every parent solution
         """
         for index, parent in self.parents.items():
             self.children[index] = copy.deepcopy(parent)
             self.children[index].set_id(self.get_next_available_id())
 
-    def mutate(self):
+    def mutate_child_solutions(self):
         """
         Mutate every child solution
         """
@@ -135,7 +138,7 @@ class Hillclimber:
 
     def get_next_available_id(self) -> int:
         """
-        Calculates the next consecutive solution id number so that no two solutions will have the sam id
+        Calculates the next consecutive solution id number so that no two solutions will have the same id
         :return: The next available id
         """
         output = self.next_available_id
@@ -147,7 +150,11 @@ class Hillclimber:
         Creates a string representation of the current generation's fitness
         :return: A string representation of the current generation's fitness
         """
-        def get_generation_header():
+        def get_generation_header() -> str:
+            """
+            Creates a header for the fitness output
+            :return: The fitness header
+            """
             if self.cpg_active:
                 cpg_mode = " (CPG)"
             else:
@@ -157,6 +164,10 @@ class Hillclimber:
                 + " (" + str(self.num_legs) + " legs)" + cpg_mode + " ***"
 
         def get_single_solution_set_fitness(parent: Solution, child: Solution, round_results: bool) -> str:
+            """
+            Creates the string representation of a single parent-child solution pair
+            :return: The string representation of a parent-child solution pair
+            """
             if round_results:
                 parent_fitness = str(round(parent.fitness, sc.FITNESS_OUTPUT_CONTROLS["round_length"]))
                 child_fitness = str(round(child.fitness, sc.FITNESS_OUTPUT_CONTROLS["round_length"]))
@@ -183,6 +194,12 @@ class Hillclimber:
         return output
 
     def create_generation_fitness_filename(self, file_extension: str) -> str:
+        """
+        Creates the filename for outputting the current generation's fitness in the format
+            `<data folder>\\fitness<index><number of legs>_legs, <active/inactive cpg>.<file_extension>`
+        :param file_extension: The file extension that the filename should have
+        :return: A string filename
+        """
         if self.cpg_active:
             cpg_mode = "active_cpg"
         else:
@@ -195,7 +212,7 @@ class Hillclimber:
 
     def print_generation_fitness(self):
         """
-        Prints the current generation's fitness
+        Prints the current generation's fitness to the console
         """
         output = "\n\n******************************\n"
         output += self.get_generation_fitness()
@@ -205,7 +222,7 @@ class Hillclimber:
 
     def write_generation_fitness_to_file(self):
         """
-        Writes the current generation's fitness in a human-readable format to a file
+        Writes the current generation's fitness in a readable format to a file
         """
         filename = self.create_generation_fitness_filename(file_extension=".txt")
 
@@ -221,15 +238,18 @@ class Hillclimber:
 
     def write_generation_fitness_to_csv(self):
         """
-        Writes the current generation's fitness to a csv file
+        Writes the current generation's fitness values, solution id's, and cpg rates to a file.
+            If the cpg is not active, rate is printed as `-1`
         """
         filename = self.create_generation_fitness_filename(".csv")
 
+        # CSV Header
         if self.generation == 0:
             output = "generation,solution,fitness,cpg_rate\n"
             with open(filename, "w") as fileout:
                 fileout.write(output)
 
+        # CSV Body
         output = ""
         for sol_index, solution in enumerate(self.parents.values()):
             output += str(self.generation + 1) + ","
@@ -248,7 +268,7 @@ class Hillclimber:
 
     def output_generation_fitness(self):
         """
-        Outputs the current generation's fitness
+        Outputs the current generation's fitness to a file and, if enabled, to the console
         """
         if sc.FITNESS_OUTPUT_CONTROLS["print_results"]:
             self.print_generation_fitness()

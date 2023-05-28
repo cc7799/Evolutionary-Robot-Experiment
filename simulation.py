@@ -18,12 +18,14 @@ class Simulation:
     def __init__(self, show_gui, solution_id):
         # Setup Sim #
         self.show_gui = show_gui
+
         if self.show_gui:
             self.physics_client = p.connect(p.GUI)
         else:
             self.physics_client = p.connect(p.DIRECT)
 
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
+
         p.setGravity(c.gravity["x"], c.gravity["y"], c.gravity["z"])
 
         self.world = World()
@@ -31,7 +33,7 @@ class Simulation:
 
     def run(self):
         """
-        Runs the simulation for the given number of frames
+        Runs the simulation for the set number of frames
         """
         try:
             random.seed()
@@ -44,10 +46,11 @@ class Simulation:
                 if sc.SIMULATION_CONTROLS["simulate"]:
                     self.robot.sense(time_step)
 
-                    self.robot.think(current_timestep=time_step, cpg_rate=10)
+                    self.robot.think(current_timestep=time_step)
 
                     self.robot.act()
-        # Should only ever occur when the simulation is being run in `show_gui` mode
+
+        # Should only ever occur when the simulation is being run in `show_gui` mode and the window is closed
         except pybullet.error:
             print("\n*** You closed the simulation window. Simulation aborted. ***")
             sys.exit(0)

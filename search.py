@@ -15,18 +15,18 @@ import system_info as si
 
 def verify_controls():
     """
-    Verifies that all the simulation and evolution controls have the correct type.
-    If any are incorrect, prints and error message and exits.
+    Verifies that all the simulation and evolution controls have the correct type and that exactly one mode is active.
+    If any are incorrect, prints an error message and exits.
     """
     def verify_active_modes():
         """
-        Verify that exactly one mode is active.
+        Verify that exactly one mode is active
         """
         mode_status = [sc.STANDARD_OPERATING_MODE["active"],
                        sc.SIMULATE_MULTIPLE_ROBOTS_TYPES["active"],
                        sc.SHOW_SPECIFIC_SOLUTION["active"]]
 
-        valid_input: bool = False
+        valid_input = False
         for mode in mode_status:
             if mode is True:
                 if not valid_input:
@@ -43,7 +43,7 @@ def verify_controls():
         """
         Gets the name of the type and prepends `an ` or `a ` depending on if it starts with a vowel or not.
         :param desired_type: The type object to get the name of
-        :return: The name of the type object with `an ` of `a ` prepended to it.
+        :return: The name of the type object with an article prepended to it.
         """
         if desired_type.__name__[0] in "aeiou":
             type_name_with_article = "an " + desired_type.__name__
@@ -124,7 +124,12 @@ def clear_old_data():
         os.system(system_call)
 
 
-def run_sim(simulation: Hillclimber, show_best: bool):
+def run_evolution(simulation: Hillclimber, show_best: bool):
+    """
+    Begins evolution using a given Hillclimber object
+    :param simulation: The Hillclimber object used for evolution
+    :param show_best: Whether the best solution should be shown at the end of evolution
+    """
     simulation.evolve()
 
     if show_best:
@@ -135,10 +140,11 @@ def run_sim(simulation: Hillclimber, show_best: bool):
 
 
 if __name__ == "__main__":
-
+    # Save start time
     with open("time.txt", "w") as fileout:
         start_time = time.time()
         fileout.write(("Start: " + str(start_time) + "\n"))
+
     verify_controls()
 
     parallel_mode = sc.SIMULATION_CONTROLS["parallel_mode"]
@@ -158,7 +164,7 @@ if __name__ == "__main__":
         sim = Hillclimber(num_generations=num_generations, population_size=pop_size, num_legs=num_legs,
                           cpg_active=cpg_active, parallel=parallel_mode, run_index=run_index)
 
-        run_sim(sim, show_best=True)
+        run_evolution(sim, show_best=True)
 
     elif sc.SIMULATE_MULTIPLE_ROBOTS_TYPES["active"]:
         clear_old_data()
@@ -176,7 +182,7 @@ if __name__ == "__main__":
                 sim = Hillclimber(num_generations=num_generations, population_size=pop_size, num_legs=num_legs,
                                   cpg_active=cpg_mode, parallel=parallel_mode, run_index=run_index)
 
-                run_sim(sim, show_best=False)
+                run_evolution(sim, show_best=False)
 
     elif sc.SHOW_SPECIFIC_SOLUTION["active"]:
         controls = sc.SHOW_SPECIFIC_SOLUTION
@@ -188,6 +194,7 @@ if __name__ == "__main__":
         sol = Solution(solution_id=0, num_legs=num_legs, cpg_active=cpg_active)
         sol.show_solution(sol_index)
 
+    # Save end time and seconds elapsed
     with open("time.txt", "a") as fileout:
         end_time = time.time()
         fileout.write(("End: " + str(end_time) + "\n"))

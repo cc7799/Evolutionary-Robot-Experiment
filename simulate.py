@@ -7,6 +7,11 @@ from simulation import Simulation
 
 
 def begin_simulation(show_gui: bool, solution_id: int):
+    """
+    Begins one simulation
+    :param show_gui: Should the graphical representation of the simulation be shown
+    :param solution_id: The id of the solution being simulated
+    """
     simulation = Simulation(show_gui, solution_id)
 
     simulation.run()

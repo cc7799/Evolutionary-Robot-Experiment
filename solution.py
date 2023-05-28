@@ -32,7 +32,7 @@ class Solution:
 
         self.create_world()
         self.create_body()
-        self.initialize_weights_and_rates(new_brain=True)
+        self.initialize_weights_and_rate(new_brain=True)
 
     def start_simulation(self, show_gui=False, parallel=True):
         """
@@ -44,7 +44,7 @@ class Solution:
         def create_simulate_begin_system_call() -> str:
             """
             Creates a system call that runs simulate.py in parallel mode
-            :return: The system call to be run
+            :return: The system call
             """
             system_call = "python simulate.py"
 
@@ -72,7 +72,7 @@ class Solution:
 
     def wait_for_sim_to_end(self):
         """
-        Wait for the simulation to end and get its fitness
+        Waits for the simulation to end and gets its fitness
         """
         fitness_filename = c.FITNESS_FOLDER_NAME + "fitness" + str(self.solution_id) + ".txt"
 
@@ -93,18 +93,22 @@ class Solution:
         os.system(system_call)
 
     def show_solution(self, solution_index: int):
+        """
+        Show a specific solution without evolving the solution at all
+        :param solution_index: The index of the solution to be shown
+        """
         self.create_world()
         self.create_body()
 
         if self.cpg_active:
-            weights_filename, cpg_rate_filename = self.create_weights_and_rates_filenames(solution_index)
+            weights_filename, cpg_rate_filename = self.create_weights_and_rate_filenames(solution_index)
 
-            self.initialize_weights_and_rates(new_brain=False,
-                                              weights_filename=weights_filename, cpg_rate_filename=cpg_rate_filename)
+            self.initialize_weights_and_rate(new_brain=False,
+                                             weights_filename=weights_filename, cpg_rate_filename=cpg_rate_filename)
         else:
-            weights_filename = self.create_weights_and_rates_filenames(solution_index)[0]
+            weights_filename = self.create_weights_and_rate_filenames(solution_index)[0]
 
-            self.initialize_weights_and_rates(new_brain=False, weights_filename=weights_filename)
+            self.initialize_weights_and_rate(new_brain=False, weights_filename=weights_filename)
 
         self.create_brain()
 
@@ -119,7 +123,14 @@ class Solution:
         pyrosim.End()
 
     def create_body(self):
-        def get_joint_x_positions():
+        """
+        Creates the body of the robot
+        """
+        def get_joint_x_positions() -> Dict[str, float]:
+            """
+            Gets the x-positions where the joints of the upper legs should be placed on the torso
+            :return: A dictionary containing the names of each leg matched to it's x-position
+            """
             joint_x: Dict = {}
 
             half_gap_length = gap_length / 2
@@ -131,13 +142,13 @@ class Solution:
                 negative_region_legs = leg_types[legs_per_region:]
 
                 next_pos_leg_pos = half_gap_length
-                for positive_leg in positive_region_legs:
-                    joint_x[positive_leg] = next_pos_leg_pos + half_leg_length
+                for positive_leg_name in positive_region_legs:
+                    joint_x[positive_leg_name] = next_pos_leg_pos + half_leg_length
                     next_pos_leg_pos += (leg_width + gap_length)
 
                 next_neg_leg_pos = -1 * half_gap_length
-                for negative_leg in negative_region_legs:
-                    joint_x[negative_leg] = next_neg_leg_pos - half_leg_length
+                for negative_leg_name in negative_region_legs:
+                    joint_x[negative_leg_name] = next_neg_leg_pos - half_leg_length
                     next_neg_leg_pos -= (leg_width + gap_length)
 
             else:
@@ -150,18 +161,21 @@ class Solution:
                 negative_region_legs = leg_types[(legs_per_region + 1):]
 
                 next_pos_leg_pos = (leg_width / 2) + gap_length
-                for positive_leg in positive_region_legs:
-                    joint_x[positive_leg] = next_pos_leg_pos + half_leg_length
+                for positive_leg_name in positive_region_legs:
+                    joint_x[positive_leg_name] = next_pos_leg_pos + half_leg_length
                     next_pos_leg_pos += (leg_width + gap_length)
 
                 next_neg_leg_pos = -1 * ((leg_width / 2) + gap_length)
-                for negative_leg in negative_region_legs:
-                    joint_x[negative_leg] = next_neg_leg_pos - half_leg_length
+                for negative_leg_name in negative_region_legs:
+                    joint_x[negative_leg_name] = next_neg_leg_pos - half_leg_length
                     next_neg_leg_pos -= (leg_width + gap_length)
 
             return joint_x
 
         def create_torso():
+            """
+            Creates the torso of the robot
+            """
             dimensions = body_dimensions["torso"]
             positions = torso_position
 
@@ -171,7 +185,18 @@ class Solution:
             self.link_names.append("torso")
 
         def create_legs():
+            """
+            Creates the legs of the robot
+            """
             def create_upper_leg(name: str, dim: Dict, pos: Dict, joint_pos: dict, joint_axis: str):
+                """
+                Creates a single upper leg of the robot
+                :param name: The name of the leg
+                :param dim: The dimensions of the leg
+                :param pos: The position of the leg
+                :param joint_pos: The position of the leg's joint
+                :param joint_axis: The axis of rotation
+                """
                 pyrosim.Send_Cube(name=name,
                                   pos=[pos["x"], pos["y"], pos["z"]],
                                   size=[dim["x"], dim["y"], dim["z"]])
@@ -188,6 +213,15 @@ class Solution:
                 self.joint_names.append(joint_name)
 
             def create_lower_leg(name: str, parent_name, dim: Dict, pos: Dict, joint_pos: dict, joint_axis: str):
+                """
+                Creates a single lower leg of the robot
+                :param name: The name of the leg
+                :param parent_name: The name of the leg's upper-leg parent
+                :param dim: The dimensions of the leg
+                :param pos: The position of the leg
+                :param joint_pos: The position of the leg's joint
+                :param joint_axis: The axis of rotation
+                """
                 pyrosim.Send_Cube(name=name,
                                   pos=[pos["x"], pos["y"], pos["z"]],
                                   size=[dim["x"], dim["y"], dim["z"]])
@@ -281,7 +315,7 @@ class Solution:
 
     def create_brain(self):
         """
-        Initializes the robot's neurons
+        Initializes the robot's neurons and synapses
         """
         brain_filename = c.OBJECTS_FOLDER_NAME + "brain" + str(self.solution_id) + ".nndf"
         sfa.safe_start_neural_network(brain_filename)
@@ -312,13 +346,19 @@ class Solution:
 
         pyrosim.End()
 
-    def initialize_weights_and_rates(self, new_brain: bool, weights_filename: str = None, cpg_rate_filename: str = None):
+    def initialize_weights_and_rate(self, new_brain: bool, weights_filename: str = None, cpg_rate_filename: str = None):
+        """
+        Initializes the synapse weights and cpg rate
+        :param new_brain: Should the weights a cpg rate be randomly generated
+        :param weights_filename: The .npy file storing the weights matrix
+        :param cpg_rate_filename: The .txt file storing the cpg rate, if this is a robot with a cpg
+        """
         if new_brain:
             # Generate a random matrix to store neuron weights normalized to [-1, 1]
             self.weights = (numpy.random.rand(self.num_sensor_or_hidden_neurons, self.num_motor_neurons) * 2) - 1
 
             if self.cpg_active:
-                self.cpg_rate = random.randint(1, c.MAX_CPG_RATE)
+                self.cpg_rate = random.randint(1, c.MAX_INITIAL_CPG_RATE)
         else:
             self.weights = sfa.safe_numpy_file_load(weights_filename)
 
@@ -327,16 +367,22 @@ class Solution:
 
     def mutate(self):
         """
-        Randomly changes either one neuron weight or the cpg_rate (if cpg_active is true)
+        Randomly changes either one neuron weight or, if cpg_active is true, the cpg_rate
         """
         def mutate_weights():
+            """
+            Randomly changes one synapse weight
+            """
             row_to_change = random.randint(0, (len(self.weights) - 1))
             col_to_change = random.randint(0, (len(self.weights[0]) - 1))
 
             self.weights[row_to_change][col_to_change] = (random.random() * 2 - 1)
 
         def mutate_cpg_rate():
-            rate_change = max(c.MIN_CPG_RATE, random.randint(-c.MAX_CPG_RATE, c.MAX_CPG_CHANGE))
+            """
+            Randomly changes the cpg rate by at most plus or minus `c.MAX_CPG_CHANGE`
+            """
+            rate_change = max(c.MIN_CPG_RATE, random.randint(-c.MAX_CPG_CHANGE, c.MAX_CPG_CHANGE))
             self.cpg_rate += rate_change
 
         if self.cpg_active:
@@ -348,7 +394,10 @@ class Solution:
             mutate_weights()
 
     def save_weights(self, index: int):
-        weights_filename, cpg_rate_filename = self.create_weights_and_rates_filenames(index)
+        """
+        Saves the matrix storing the synapse weights to a .npy file and, if there's a cpg, saves the rate to a .txt file
+        """
+        weights_filename, cpg_rate_filename = self.create_weights_and_rate_filenames(index)
 
         sfa.safe_numpy_file_save(weights_filename, self.weights)
 
@@ -358,7 +407,11 @@ class Solution:
 
             sfa.safe_file_write(cpg_rate_filename, str(self.cpg_rate), overwrite=True)
 
-    def create_weights_and_rates_filenames(self, index: int):
+    def create_weights_and_rate_filenames(self, index: int):
+        """
+        Creates the filenames for storing and reading the synapse weights and cpg rate
+        :return: A tuple containing the weights filename and either the cpg rate filename or None, if there is no cpg
+        """
         if self.cpg_active:
             cpg_rate_filename = c.SOLUTIONS_FOLDER_NAME + "cpg_rate" + str(index) \
                                 + "(" + str(self.num_legs) + "_legs)" + ".txt"
