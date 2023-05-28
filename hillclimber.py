@@ -5,7 +5,7 @@ from typing import Dict
 from solution import Solution
 import constants as c
 import sim_controls as sc
-import system_info as sys
+import system_info as si
 
 
 def delete_leftover_files():
@@ -14,14 +14,14 @@ def delete_leftover_files():
     (leftover files will only exist if previous run glitched or was aborted)
     """
 
-    if sys.WINDOWS:
+    if si.WINDOWS:
         system_call = "del "
     else:
         system_call = "rm "
 
-    system_calls = [system_call + "\"" + sys.PROJECT_FILEPATH + c.FITNESS_FOLDER_NAME + "fitness*.txt\"",
-                    system_call + "\"" + sys.PROJECT_FILEPATH + c.FITNESS_FOLDER_NAME + "tmp*.txt\"",
-                    system_call + "\"" + sys.PROJECT_FILEPATH + c.OBJECTS_FOLDER_NAME + "brain*.nndf\""]
+    system_calls = [system_call + "\"" + si.PROJECT_FILEPATH + c.FITNESS_FOLDER_NAME + "fitness*.txt\"",
+                    system_call + "\"" + si.PROJECT_FILEPATH + c.FITNESS_FOLDER_NAME + "tmp*.txt\"",
+                    system_call + "\"" + si.PROJECT_FILEPATH + c.OBJECTS_FOLDER_NAME + "brain*.nndf\""]
 
     for system_call in system_calls:
         os.system(system_call)
@@ -31,14 +31,17 @@ class Hillclimber:
     """
     Simulates and evolves a set of quadruped robots
     """
-    def __init__(self, num_generations: int, population_size: int, num_legs: int, parallel: bool):
+    def __init__(self, num_generations: int, population_size: int, num_legs: int, cpg_active: bool, parallel: bool,
+                 run_index: int):
 
         delete_leftover_files()
 
         self.num_generations = num_generations
         self.population_size = population_size
-        self.parallel = parallel
         self.num_legs = num_legs
+        self.cpg_active = cpg_active
+        self.parallel = parallel
+        self.run_index = run_index
 
         self.next_available_id = 0
         self.generation = 0
@@ -48,7 +51,7 @@ class Hillclimber:
 
         # Create initial population
         for i in range(self.population_size):
-            self.parents[i] = Solution(self.get_next_available_id(), self.num_legs)
+            self.parents[i] = Solution(self.get_next_available_id(), self.num_legs, cpg_active)
 
     def evolve(self):
         """
@@ -144,6 +147,15 @@ class Hillclimber:
         Creates a string representation of the current generation's fitness
         :return: A string representation of the current generation's fitness
         """
+        def get_generation_header():
+            if self.cpg_active:
+                cpg_mode = " (CPG)"
+            else:
+                cpg_mode = ""
+
+            return "*** Generation " + str(self.generation + 1) + "/" + str(self.num_generations) \
+                + " (" + str(self.num_legs) + " legs)" + cpg_mode + " ***"
+
         def get_single_solution_set_fitness(parent: Solution, child: Solution, round_results: bool) -> str:
             if round_results:
                 parent_fitness = str(round(parent.fitness, sc.FITNESS_OUTPUT_CONTROLS["round_length"]))
@@ -152,19 +164,34 @@ class Hillclimber:
                 parent_fitness = str(parent.fitness)
                 child_fitness = str(child.fitness)
 
-            set_output  = "Parent: " + parent_fitness + " (CPG: " + str(parent.cpg_rate) + "), "
-            set_output += "Child: "  + child_fitness  + " (CPG: " + str(child.cpg_rate)  + ")"
+            if self.cpg_active:
+                cpg_mode = " (CPG: " + str(parent.cpg_rate) + ")"
+            else:
+                cpg_mode = ""
+
+            set_output  = "Parent: " + parent_fitness + cpg_mode + ", "
+            set_output += "Child: "  + child_fitness  + cpg_mode
 
             return set_output
 
-        output = "*** Generation " + str(self.generation + 1) + "/" + str(self.num_generations) \
-                 + " (" + str(self.num_legs) + " legs) ***"
+        output = get_generation_header()
         for i in range(0, len(self.parents)):
             output += "\nSolution " + str(i) + "\n"
             output += get_single_solution_set_fitness(self.parents[i], self.children[i],
                                                       round_results=sc.FITNESS_OUTPUT_CONTROLS["round_length"])
 
         return output
+
+    def create_generation_fitness_filename(self, file_extension: str) -> str:
+        if self.cpg_active:
+            cpg_mode = "active_cpg"
+        else:
+            cpg_mode = "inactive_cpg"
+
+        assert(file_extension[0] == ".")
+
+        return c.DATA_FOLDER_NAME + "fitness" + str(self.run_index) + "(" + str(self.num_legs) + "_legs, " \
+            + cpg_mode + ")" + file_extension
 
     def print_generation_fitness(self):
         """
@@ -180,10 +207,10 @@ class Hillclimber:
         """
         Writes the current generation's fitness in a human-readable format to a file
         """
+        filename = self.create_generation_fitness_filename(file_extension=".txt")
+
         output = "******************************\n"
         output += self.get_generation_fitness() + "\n"
-
-        filename = c.DATA_FOLDER_NAME + "fitness(" + str(self.num_legs) + "_legs)" + ".txt"
 
         if self.generation == 0:
             with open(filename, "w") as fileout:
@@ -196,21 +223,25 @@ class Hillclimber:
         """
         Writes the current generation's fitness to a csv file
         """
-        filename = c.DATA_FOLDER_NAME + "fitness(" + str(self.num_legs) + "_legs).csv"
+        filename = self.create_generation_fitness_filename(".csv")
+
         if self.generation == 0:
-            output = "generation,highest_fitness,solution,pop_size\n"
+            output = "generation,solution,fitness,cpg_rate\n"
             with open(filename, "w") as fileout:
                 fileout.write(output)
 
-        max_fitness = self.parents[0].fitness
-        max_fitness_index = 0
-        for i in range(1, len(self.parents)):
-            if self.parents[i].fitness > max_fitness:
-                max_fitness = self.parents[i].fitness
-                max_fitness_index = i
+        output = ""
+        for sol_index, solution in enumerate(self.parents.values()):
+            output += str(self.generation + 1) + ","
 
-        output = str(self.generation + 1) + "," + str(self.parents[max_fitness_index].fitness) + "," \
-            + str(max_fitness_index) + "," + str(self.population_size) + "\n"
+            sol_index = sol_index + ((self.run_index - 1) * self.population_size)
+
+            output += str(sol_index) + ","
+            output += str(solution.fitness) + ","
+            if self.cpg_active:
+                output += str(solution.cpg_rate) + "\n"
+            else:
+                output += str(-1) + "\n"
 
         with open(filename, "a") as fileout:
             fileout.write(output)

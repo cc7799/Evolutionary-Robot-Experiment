@@ -16,18 +16,17 @@ class Solution:
     Data and controls for creating and simulation a single solution
     """
 
-    def __init__(self, solution_id: int, num_legs: int):
+    def __init__(self, solution_id: int, num_legs: int, cpg_active: bool):
         self.solution_id = solution_id
         self.num_legs = num_legs
-
-        self.weights: numpy.matrix
-        self.cpg_rate: int
+        self.cpg_active = cpg_active
 
         self.fitness: float = -1
-
         self.link_names: List[str] = []
         self.joint_names: List[str] = []
 
+        self.weights: numpy.matrix
+        self.cpg_rate: int
         self.num_sensor_or_hidden_neurons: int
         self.num_motor_neurons: int
 
@@ -97,20 +96,19 @@ class Solution:
         self.create_world()
         self.create_body()
 
-        weights_filename, cpg_rate_filename = self.create_weights_and_rates_filenames(solution_index)
+        if self.cpg_active:
+            weights_filename, cpg_rate_filename = self.create_weights_and_rates_filenames(solution_index)
 
-        self.initialize_weights_and_rates(new_brain=False,
-                                          weights_filename=weights_filename, cpg_rate_filename=cpg_rate_filename)
+            self.initialize_weights_and_rates(new_brain=False,
+                                              weights_filename=weights_filename, cpg_rate_filename=cpg_rate_filename)
+        else:
+            weights_filename = self.create_weights_and_rates_filenames(solution_index)[0]
+
+            self.initialize_weights_and_rates(new_brain=False, weights_filename=weights_filename)
+
         self.create_brain()
 
         simulate.begin_simulation(show_gui=True, solution_id=self.solution_id)
-
-    def set_id(self, solution_id: int):
-        """
-        Set the solution's id
-        :param solution_id: The value that should be set as the id
-        """
-        self.solution_id = solution_id
 
     def create_world(self):
         """
@@ -296,8 +294,9 @@ class Solution:
             current_neuron_name += 1
 
         # Central Pattern Generator (CPG) Neuron
-        pyrosim.Send_CPG_Neuron(current_neuron_name, self.cpg_rate)
-        current_neuron_name += 1
+        if self.cpg_active:
+            pyrosim.Send_CPG_Neuron(current_neuron_name, self.cpg_rate)
+            current_neuron_name += 1
 
         # Motor Neurons
         for joint_name in self.joint_names:
@@ -318,40 +317,67 @@ class Solution:
             # Generate a random matrix to store neuron weights normalized to [-1, 1]
             self.weights = (numpy.random.rand(self.num_sensor_or_hidden_neurons, self.num_motor_neurons) * 2) - 1
 
-            self.cpg_rate = random.randint(1, c.MAX_CPG_RATE)
+            if self.cpg_active:
+                self.cpg_rate = random.randint(1, c.MAX_CPG_RATE)
         else:
             self.weights = sfa.safe_numpy_file_load(weights_filename)
 
-            self.cpg_rate = sfa.safe_file_read(cpg_rate_filename)[0]
+            if self.cpg_active:
+                self.cpg_rate = sfa.safe_file_read(cpg_rate_filename)[0]
 
     def mutate(self):
         """
-        Randomly changes either one neuron weight or the cpg_rate
+        Randomly changes either one neuron weight or the cpg_rate (if cpg_active is true)
         """
-        if random.randint(1, 2) % 2 == 0:
+        def mutate_weights():
             row_to_change = random.randint(0, (len(self.weights) - 1))
             col_to_change = random.randint(0, (len(self.weights[0]) - 1))
 
             self.weights[row_to_change][col_to_change] = (random.random() * 2 - 1)
-        else:
+
+        def mutate_cpg_rate():
             rate_change = max(c.MIN_CPG_RATE, random.randint(-c.MAX_CPG_RATE, c.MAX_CPG_CHANGE))
             self.cpg_rate += rate_change
+
+        if self.cpg_active:
+            if random.randint(1, 2) % 2 == 0:
+                mutate_weights()
+            else:
+                mutate_cpg_rate()
+        else:
+            mutate_weights()
 
     def save_weights(self, index: int):
         weights_filename, cpg_rate_filename = self.create_weights_and_rates_filenames(index)
 
         sfa.safe_numpy_file_save(weights_filename, self.weights)
 
-        cpg_rate_filename = c.WEIGHTS_FOLDER_NAME + "cpg_rate" + str(index) \
-            + "(" + str(self.num_legs) + "_legs)" + ".txt"
+        if self.cpg_active:
+            cpg_rate_filename = c.SOLUTIONS_FOLDER_NAME + "cpg_rate" + str(index) \
+                                + "(" + str(self.num_legs) + "_legs)" + ".txt"
 
-        sfa.safe_file_write(cpg_rate_filename, str(self.cpg_rate))
+            sfa.safe_file_write(cpg_rate_filename, str(self.cpg_rate), overwrite=True)
 
     def create_weights_and_rates_filenames(self, index: int):
-        weights_filename = c.WEIGHTS_FOLDER_NAME + "weights" + str(index) \
-                           + "(" + str(self.num_legs) + "_legs)" + ".npy"
+        if self.cpg_active:
+            cpg_rate_filename = c.SOLUTIONS_FOLDER_NAME + "cpg_rate" + str(index) \
+                                + "(" + str(self.num_legs) + "_legs)" + ".txt"
 
-        cpg_rate_filename = c.WEIGHTS_FOLDER_NAME + "cpg_rate" + str(index) \
-                            + "(" + str(self.num_legs) + "_legs)" + ".txt"
+            cpg_type_name = "active"
+
+        else:
+            cpg_rate_filename = None
+
+            cpg_type_name = "inactive"
+
+        weights_filename = c.SOLUTIONS_FOLDER_NAME + "weights" + str(index) \
+            + "(" + str(self.num_legs) + "_legs, " + cpg_type_name + "_cpg)" + ".npy"
 
         return weights_filename, cpg_rate_filename
+
+    def set_id(self, solution_id: int):
+        """
+        Set the solution's id
+        :param solution_id: The value that should be set as the id
+        """
+        self.solution_id = solution_id
