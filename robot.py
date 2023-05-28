@@ -74,7 +74,6 @@ class Robot:
         """
         for joint_name in pyrosim.jointNamesToIndices:
             self.motors[joint_name] = Motor(joint_name)
-        pass
 
     def act(self):
         """
@@ -95,11 +94,11 @@ class Robot:
                 joint_name_bytes = bytes(joint_name, "utf-8")
                 self.motors[joint_name_bytes].set_value(self.robotId, desired_angle)
 
-    def think(self):
+    def think(self, current_timestep: int, cpg_rate: int):
         """
         Updates the robot's neural network
         """
-        self.nn.Update()
+        self.nn.Update(current_timestep)
 
     def get_fitness(self):
         """

@@ -21,11 +21,19 @@ class Solution:
         self.num_legs = num_legs
 
         self.weights: numpy.matrix
+        self.cpg_rate: int
 
         self.fitness: float = -1
 
         self.link_names: List[str] = []
         self.joint_names: List[str] = []
+
+        self.num_sensor_or_hidden_neurons: int
+        self.num_motor_neurons: int
+
+        self.create_world()
+        self.create_body()
+        self.initialize_weights_and_rates(new_brain=True)
 
     def start_simulation(self, show_gui=False, parallel=True):
         """
@@ -55,8 +63,6 @@ class Solution:
 
             return system_call
 
-        self.create_world()
-        self.create_body()
         self.create_brain()
 
         # Run Simulation #
@@ -91,10 +97,11 @@ class Solution:
         self.create_world()
         self.create_body()
 
-        weights_filename = c.WEIGHTS_FOLDER_NAME + "weights" + str(solution_index) \
-            + "(" + str(self.num_legs) + "_legs)" + ".npy"
+        weights_filename, cpg_rate_filename = self.create_weights_and_rates_filenames(solution_index)
 
-        self.create_brain(new_brain=False, weights_filename=weights_filename)
+        self.initialize_weights_and_rates(new_brain=False,
+                                          weights_filename=weights_filename, cpg_rate_filename=cpg_rate_filename)
+        self.create_brain()
 
         simulate.begin_simulation(show_gui=True, solution_id=self.solution_id)
 
@@ -166,7 +173,6 @@ class Solution:
             self.link_names.append("torso")
 
         def create_legs():
-
             def create_upper_leg(name: str, dim: Dict, pos: Dict, joint_pos: dict, joint_axis: str):
                 pyrosim.Send_Cube(name=name,
                                   pos=[pos["x"], pos["y"], pos["z"]],
@@ -270,58 +276,82 @@ class Solution:
         create_torso()
         create_legs()
 
+        self.num_sensor_or_hidden_neurons = len(self.link_names) + 1
+        self.num_motor_neurons = len(self.joint_names)
+
         pyrosim.End()
 
-    def create_brain(self, new_brain: bool = True, weights_filename: str = None):
+    def create_brain(self):
         """
         Initializes the robot's neurons
         """
-
-        def create_synapse_weights():
-            if new_brain:
-                return (numpy.random.rand(num_sensor_neurons, num_motor_neurons) * 2) - 1
-            else:
-                return numpy.load(weights_filename)
-
         brain_filename = c.OBJECTS_FOLDER_NAME + "brain" + str(self.solution_id) + ".nndf"
         sfa.safe_start_neural_network(brain_filename)
 
         # Neurons #
+        # Sensor Neurons
         current_neuron_name: int = 0
         for link_name in self.link_names:
             pyrosim.Send_Sensor_Neuron(name=current_neuron_name, linkName=link_name)
             current_neuron_name += 1
 
+        # Central Pattern Generator (CPG) Neuron
+        pyrosim.Send_CPG_Neuron(current_neuron_name, self.cpg_rate)
+        current_neuron_name += 1
+
+        # Motor Neurons
         for joint_name in self.joint_names:
             pyrosim.Send_Motor_Neuron(current_neuron_name, joint_name)
             current_neuron_name += 1
 
         # Synapses #
-        num_sensor_neurons = len(self.link_names)
-        num_motor_neurons = len(self.joint_names)
-
-        # Generate a random matrix to store neuron weights normalized to [-1, 1]
-        self.weights = create_synapse_weights()
-
-        for row in range(num_sensor_neurons):
-            for col in range(num_motor_neurons):
+        for row in range(self.num_sensor_or_hidden_neurons):
+            for col in range(self.num_motor_neurons):
                 pyrosim.Send_Synapse(sourceNeuronName=row,
-                                     targetNeuronName=(col + num_sensor_neurons),
+                                     targetNeuronName=(col + self.num_sensor_or_hidden_neurons),
                                      weight=self.weights[row][col])
 
         pyrosim.End()
 
+    def initialize_weights_and_rates(self, new_brain: bool, weights_filename: str = None, cpg_rate_filename: str = None):
+        if new_brain:
+            # Generate a random matrix to store neuron weights normalized to [-1, 1]
+            self.weights = (numpy.random.rand(self.num_sensor_or_hidden_neurons, self.num_motor_neurons) * 2) - 1
+
+            self.cpg_rate = random.randint(1, c.MAX_CPG_RATE)
+        else:
+            self.weights = sfa.safe_numpy_file_load(weights_filename)
+
+            self.cpg_rate = sfa.safe_file_read(cpg_rate_filename)[0]
+
     def mutate(self):
         """
-        Randomly changes one neuron weight
+        Randomly changes either one neuron weight or the cpg_rate
         """
-        row_to_change = random.randint(0, (len(self.weights) - 1))
-        col_to_change = random.randint(0, (len(self.weights[0]) - 1))
+        if random.randint(1, 2) % 2 == 0:
+            row_to_change = random.randint(0, (len(self.weights) - 1))
+            col_to_change = random.randint(0, (len(self.weights[0]) - 1))
 
-        self.weights[row_to_change][col_to_change] = (random.random() * 2 - 1)
+            self.weights[row_to_change][col_to_change] = (random.random() * 2 - 1)
+        else:
+            rate_change = max(c.MIN_CPG_RATE, random.randint(-c.MAX_CPG_RATE, c.MAX_CPG_CHANGE))
+            self.cpg_rate += rate_change
 
     def save_weights(self, index: int):
-        weights_filename = c.WEIGHTS_FOLDER_NAME + "weights" + str(index) \
-            + "(" + str(self.num_legs) + "_legs)" + ".npy"
+        weights_filename, cpg_rate_filename = self.create_weights_and_rates_filenames(index)
 
-        numpy.save(weights_filename, self.weights)
+        sfa.safe_numpy_file_save(weights_filename, self.weights)
+
+        cpg_rate_filename = c.WEIGHTS_FOLDER_NAME + "cpg_rate" + str(index) \
+            + "(" + str(self.num_legs) + "_legs)" + ".txt"
+
+        sfa.safe_file_write(cpg_rate_filename, str(self.cpg_rate))
+
+    def create_weights_and_rates_filenames(self, index: int):
+        weights_filename = c.WEIGHTS_FOLDER_NAME + "weights" + str(index) \
+                           + "(" + str(self.num_legs) + "_legs)" + ".npy"
+
+        cpg_rate_filename = c.WEIGHTS_FOLDER_NAME + "cpg_rate" + str(index) \
+                            + "(" + str(self.num_legs) + "_legs)" + ".txt"
+
+        return weights_filename, cpg_rate_filename

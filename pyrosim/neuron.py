@@ -18,6 +18,9 @@ class NEURON:
 
         self.Search_For_Joint_Name(line)
 
+        # The time steps per pulse if this neuron is a CPG; None if it is not
+        self.Determine_Pulse_Rate(line)
+
         self.Set_Value(0.0)
 
     def Add_To_Value( self, value ):
@@ -48,6 +51,10 @@ class NEURON:
 
         return self.type == c.HIDDEN_NEURON
 
+    def Is_CPG_Neuron(self):
+
+        return self.type == c.CPG_NEURON
+
     def Is_Motor_Neuron(self):
 
         return self.type == c.MOTOR_NEURON
@@ -69,6 +76,19 @@ class NEURON:
     def Update_Sensor_Neuron(self):
         self.Set_Value(pyrosim.Get_Touch_Sensor_Value_For_Link(self.Get_Link_Name()))
 
+    def Update_CPG_Neuron(self, timestep: int):
+        """
+        Update a Central Pattern Generator neuron
+        :param timestep: The current timestep of the simulation. Used to determine if the CPG should pulse
+        """
+        # This function should never be called on a non-cpg neuron. This will prevent it in case any mistakes are made
+        assert (self.Pulse_Rate is not None)
+
+        if timestep % self.Pulse_Rate == 0:
+            self.Set_Value(1)
+        else:
+            self.Set_Value(0)
+
     def Update_Hidden_Or_Motor_Neuron(self, neurons, synapses):
         self.Set_Value(0)
         for synapse_name in synapses.keys():
@@ -78,6 +98,7 @@ class NEURON:
             synapse_weight = synapses[synapse_name].Get_Weight()
             pre_synaptic_value = neurons[pre_synaptic_neuron].Get_Value()
 
+            # If the neuron currently being updated is the post-synaptic neuron
             if self.Get_Name() == post_synaptic_neuron:
                 self.Allow_Presynaptic_Neuron_To_Influence_Me(synapse_weight, pre_synaptic_value)
 
@@ -108,9 +129,25 @@ class NEURON:
 
             self.type = c.MOTOR_NEURON
 
+        elif "cpg" in line:
+
+            self.type = c.CPG_NEURON
+
         else:
 
             self.type = c.HIDDEN_NEURON
+
+    def Determine_Pulse_Rate(self, line):
+
+        if "cpg" in line:
+            rate_index = line.index("rate = \"") + 8
+            end_of_rate_index = line.index("/") - 2
+
+            rate = int(line[rate_index: end_of_rate_index])
+
+            self.Pulse_Rate = rate
+        else:
+            self.Pulse_Rate = None
 
     def Print_Name(self):
 
