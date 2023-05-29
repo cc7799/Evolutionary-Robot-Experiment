@@ -9,6 +9,7 @@ import pybullet as p
 import pyrosim.pyrosim as pyrosim
 
 
+# How long to wait before re-attempting file access
 SECONDS_TO_WAIT = 1
 
 

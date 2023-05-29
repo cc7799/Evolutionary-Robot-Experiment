@@ -11,12 +11,16 @@ import system_info as si
 
 
 def get_joint_type(joint_name: str):
+    """
+    Returns whether the joint with a given name is moving an upper leg or a lower leg
+    :return: 'upper_leg' if it's moving an upper leg; 'lower_leg' otherwise
+    """
     parent_link_index = joint_name.index("_")
 
     parent_link_name = joint_name[0:parent_link_index]
 
     if parent_link_name == "torso":
-        return "torso"
+        return "upper_leg"
     else:
         return "lower_leg"
 
@@ -54,7 +58,6 @@ class Robot:
     def prepare_to_sense(self):
         """
         Creates a list of all the robot's sensors
-        :return:
         """
         for link_name in pyrosim.linkNamesToIndices:
             self.sensors[link_name] = Sensor(link_name)
@@ -70,7 +73,6 @@ class Robot:
     def prepare_to_act(self):
         """
         Creates a list of all the robot's joints
-        :return:
         """
         for joint_name in pyrosim.jointNamesToIndices:
             self.motors[joint_name] = Motor(joint_name)
@@ -84,8 +86,8 @@ class Robot:
                 joint_name = self.nn.Get_Motor_Neuron_Joint(neuronName)
 
                 joint_type = get_joint_type(joint_name)
-                if joint_type == "torso":
-                    joint_range = c.TORSO_MOTOR_JOINT_RANGE
+                if joint_type == "upper_leg":
+                    joint_range = c.UPPER_LEG_MOTOR_JOINT_RANGE
                 else:
                     joint_range = c.LOWER_LEG_MOTOR_JOINT_RANGE
 
@@ -94,7 +96,7 @@ class Robot:
                 joint_name_bytes = bytes(joint_name, "utf-8")
                 self.motors[joint_name_bytes].set_value(self.robotId, desired_angle)
 
-    def think(self, current_timestep: int, cpg_rate: int):
+    def think(self, current_timestep: int):
         """
         Updates the robot's neural network
         """
@@ -105,15 +107,14 @@ class Robot:
         Calculates the robot's fitness and writes it to a file with protection to allow for parallel simulations
         """
         x_position = p.getBasePositionAndOrientation(self.robotId)[0][0]
-        # x_position = base_position[0]
 
         tmp_fitness_filename = c.FITNESS_FOLDER_NAME + "tmp" + str(self.solution_id) + ".txt"
         fitness_filename = c.FITNESS_FOLDER_NAME + "fitness" + str(self.solution_id) + ".txt"
         with open(tmp_fitness_filename, "w") as fileout:
             fileout.write(str(x_position))
 
-        # Change the name of the file only after it has been written,
-        #   this will prevent it being read early by the parallelized solution
+        # Change the name of the file only after it has been written
+        #   to prevent it being read early by the parallelized solution
         if si.WINDOWS:
             os.rename(tmp_fitness_filename, fitness_filename)
         else:

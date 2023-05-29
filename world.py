@@ -3,6 +3,7 @@ import pybullet as p
 from constants import WORLD_FILENAME
 import safe_file_access as sfa
 
+
 class World:
     """
     Creates the world of a simulation
