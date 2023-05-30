@@ -11,6 +11,8 @@ class NEURAL_NETWORK:
 
         self.synapses = {}
 
+        self.CPG_rate = None
+
         f = open(nndfFileName,"r")
 
         for line in f.readlines():
@@ -29,10 +31,14 @@ class NEURAL_NETWORK:
 
         print("")
 
-    def Update(self):
+    def Update(self, current_timestep: int):
         for neuronName in self.neurons:
             if self.neurons[neuronName].Is_Sensor_Neuron():
                 self.neurons[neuronName].Update_Sensor_Neuron()
+
+            elif self.neurons[neuronName].Is_CPG_Neuron():
+                self.neurons[neuronName].Update_CPG_Neuron(current_timestep)
+
             else:
                 self.neurons[neuronName].Update_Hidden_Or_Motor_Neuron(self.neurons, self.synapses)
 
@@ -70,7 +76,10 @@ class NEURAL_NETWORK:
 
         if self.Line_Contains_Neuron_Definition(line):
 
-            self.Add_Neuron_According_To(line)
+            if self.Line_Contains_CFG_Neuron(line):
+                self.Add_Neuron_According_To(line, Pulse_Rate=5)
+            else:
+                self.Add_Neuron_According_To(line)
 
         if self.Line_Contains_Synapse_Definition(line):
 
@@ -79,6 +88,10 @@ class NEURAL_NETWORK:
     def Line_Contains_Neuron_Definition(self,line):
 
         return "neuron" in line
+
+    def Line_Contains_CFG_Neuron(self, line):
+
+        return "cfg" in line
 
     def Line_Contains_Synapse_Definition(self,line):
 
