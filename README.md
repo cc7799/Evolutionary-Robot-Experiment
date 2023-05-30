@@ -1,5 +1,5 @@
-# Evolving Quadruped Robot
-A simulation of a simple quadruped robot that uses evolutionary algorithms to learn how to walk. 
+# Evolving Robot Experiment
+
 
 This was created as a project for the Evolutionary Robotics (CS 3060) course I took as a student at UVM.
 
