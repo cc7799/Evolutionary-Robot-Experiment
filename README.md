@@ -1,5 +1,6 @@
 # Evolving Robot Experiment
-
+This project allows for the evolution of simple robots for maximum distance walked. 
+The neural network is composed of touch sensor neurons, motor neurons, and an optional central pattern generator neuron.
 
 This was created as a project for the Evolutionary Robotics (CS 3060) course I took as a student at UVM.
 
