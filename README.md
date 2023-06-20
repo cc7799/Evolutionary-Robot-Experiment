@@ -31,6 +31,10 @@ A video of the results of 500 generations with a population size of 10 for robot
 Each robot type is shown with no brain, a random brain, an evolved brain without a CPG, and an evolved brain with a CPG, 
     in that order.
 
+Graphs of a sample set of 13 evolution runs of a population size of 10 for 500 generations each can be found 
+    [here](https://files.catbox.moe/ii2n2w.pdf).
+The `R` code used to create these graphs and the sample data used can be found in the `data_graphing` folder.
+
 ### Body & Brain Architecture
 A robot is composed of a rectangular body and an even number of legs.
 Each leg has an upper and lower part.
