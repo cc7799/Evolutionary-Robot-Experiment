@@ -32,7 +32,7 @@ Each robot type is shown with no brain, a random brain, an evolved brain without
     in that order.
 
 Graphs of a sample set of 13 evolution runs of a population size of 10 for 500 generations each can be found 
-    [here](https://files.catbox.moe/ii2n2w.pdf).
+    [here](data_graphing/fitness_graphs.pdf).
 The `R` code used to create these graphs and the sample data used can be found in the `data_graphing` folder.
 
 ### Body & Brain Architecture
