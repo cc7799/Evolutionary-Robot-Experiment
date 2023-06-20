@@ -1,0 +1,448 @@
+---
+title: "Fitness Graphs"
+author: "Connor Constantino"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+pacman::p_load(tidyverse)
+
+```
+
+## R Markdown
+
+```{r constants, include=FALSE}
+# The number of separate evolution runs. 
+#   Used to know how many data files to read in
+.NUM_RUNS <- 13
+
+# The number of generations the robots were evolved for
+.NUM_GENERATIONS <- 500
+
+# If data that will not be used later should be removed.
+#   Set to 'FALSE' for testing.
+.REMOVE_DATA = TRUE
+
+# What should be counted as a high fitness value
+.FITNESS_CUTOFF <- 10
+```
+
+```{r functions, include=FALSE}
+# Reads in a number of csv files and combines them into a single list
+read_fitness_csv_files <- function(num_legs) {
+  for (i in 1:.NUM_RUNS) {
+    print(i)
+    inactive_cpg_filename <- paste("data\\fitness", i, "(", num_legs, 
+                                   "_legs, inactive_cpg).csv",
+                                   sep="")
+    active_cpg_filename   <- paste("data\\fitness", i, "(", num_legs, 
+                                   "_legs, active_cpg).csv",
+                                   sep="")
+    
+    temp_inactive_cpg <- read.csv(inactive_cpg_filename) %>% 
+      mutate(num_legs=num_legs,
+             .before=fitness)
+    
+    temp_active_cpg   <- read.csv(active_cpg_filename) %>% 
+      mutate(num_legs=num_legs,
+             .before=fitness)
+    
+    if (i == 1){
+      inactive_cpg <- temp_inactive_cpg
+      active_cpg   <- temp_active_cpg
+    }
+    else {
+      inactive_cpg <- rbind(inactive_cpg, temp_inactive_cpg)
+      active_cpg   <- rbind(active_cpg,   temp_active_cpg)
+    }
+  }
+  
+  data <- lst(inactive_cpg, active_cpg)
+  
+  return(data)
+}
+
+
+```
+
+
+```{r read_data, include=FALSE}
+four_legs  <- read_fitness_csv_files(4)
+six_legs   <- read_fitness_csv_files(6)
+eight_legs <- read_fitness_csv_files(8)
+```
+
+```{r merge_data, include=FALSE}
+no_cpg1 <- rbind(four_legs[["inactive_cpg"]], six_legs[["inactive_cpg"]])
+no_cpg  <- rbind(no_cpg1, eight_legs[["inactive_cpg"]])
+
+cpg1 <- rbind(four_legs[["active_cpg"]], six_legs[["active_cpg"]])
+cpg  <- rbind(cpg1, eight_legs[["active_cpg"]])
+
+no_cpg <- as_tibble(no_cpg)
+cpg    <- as_tibble(cpg)
+
+if (.REMOVE_DATA){
+  remove(four_legs, six_legs, eight_legs,
+         no_cpg1, cpg1)
+  
+  remove(read_fitness_csv_files)
+}
+
+
+```
+
+```{r summarise_fitness_data, include=FALSE, warnings=FALSE}
+# Summaries of the fitness of robots without a CPG #
+no_cpg_summary_separate_legs <- 
+  
+  no_cpg %>% group_by(num_legs, generation) %>% 
+  
+  summarise(mean = mean(fitness),
+            max  = max(fitness)) %>% 
+  
+  pivot_longer(cols = c(mean, max),
+               names_to = "summary_type",
+               values_to = "fitness")
+
+
+no_cpg_summary_combined_legs <- 
+  
+  no_cpg %>% 
+  
+  group_by(generation) %>% 
+  
+  summarise(mean = mean(fitness),
+            max  = max(fitness)) %>% 
+  
+  pivot_longer(cols = c(mean, max),
+               names_to = "summary_type",
+               values_to = "fitness")
+
+# Summaries of the fitness of robots with a CPG #
+cpg_summary_separate_legs <- 
+  
+  cpg %>% 
+  
+  group_by(num_legs, generation) %>% 
+  
+  summarise(mean = mean(fitness),
+            max = max(fitness)) %>% 
+  
+  pivot_longer(cols = c(mean, max),
+               names_to = "summary_type",
+               values_to = "fitness")
+
+
+cpg_summary_combined_legs <- 
+  
+  cpg %>% 
+  
+  group_by(generation) %>% 
+  
+  summarise(mean = mean(fitness),
+            max  = max(fitness)) %>% 
+  
+  pivot_longer(cols = c(mean, max),
+               names_to = "summary_type",
+               values_to = "fitness")
+
+
+# Combined summary data frame of robots both with and without a CPG #
+fitness_summary_separate_legs <- 
+  
+  merge(x = no_cpg_summary_separate_legs, y = cpg_summary_separate_legs, 
+        by = (c("generation", "num_legs", "summary_type")),
+        suffixes = (c("_nocpg", "_cpg"))) %>% 
+  
+  rename(cpg = fitness_cpg,
+         no_cpg = fitness_nocpg) %>%
+
+  pivot_longer(cols = c(cpg, no_cpg),
+               names_to = "neural_network_type",
+               values_to = "fitness")
+
+
+fitness_summary_combined_legs <- 
+  
+  merge(x = no_cpg_summary_combined_legs, y = cpg_summary_combined_legs, 
+        by = (c("generation", "summary_type")),
+        suffixes = (c("_nocpg", "_cpg"))) %>% 
+  
+  rename(cpg = fitness_cpg,
+         no_cpg = fitness_nocpg) %>%
+
+  pivot_longer(cols = c(cpg, no_cpg),
+               names_to = "neural_network_type",
+               values_to = "fitness")
+
+
+fitness_summary <- list(combined_legs    = fitness_summary_combined_legs,
+                        separate_legs    = fitness_summary_separate_legs)
+
+if (.REMOVE_DATA){
+  remove(no_cpg_summary_combined_legs, no_cpg_summary_separate_legs,
+         cpg_summary_combined_legs, cpg_summary_separate_legs,
+         fitness_summary_combined_legs, fitness_summary_separate_legs)
+}
+```
+
+```{r cpg_rate_fitness, include=FALSE, warnings=FALSE}
+cpg_rate_fitness_all <- 
+  
+  cpg %>% 
+  
+  filter(generation == 500)
+
+# Removes the 'generation' and 'solution' columns
+cpg_rate_fitness  <- cpg_rate_fitness_all[c(-1, -2)]
+
+
+cpg_rate_fitness_high <- 
+  
+  cpg_rate_fitness_all %>% 
+  
+  filter(fitness >= .FITNESS_CUTOFF)
+
+
+cpg_rate_fitness_low <- 
+  
+  cpg_rate_fitness_all %>% 
+  
+  filter(fitness < .FITNESS_CUTOFF)
+
+cpg_rate_fitness <- list(all  = cpg_rate_fitness_all,
+                         high = cpg_rate_fitness_high,
+                         low  = cpg_rate_fitness_low)
+  
+
+if(.REMOVE_DATA) {
+  remove(cpg, no_cpg,
+         cpg_rate_fitness_all, cpg_rate_fitness_high, cpg_rate_fitness_low)
+}
+
+
+```
+
+```{r plotting_variables, include=FALSE}
+line_size <- 1.5
+
+label_names <- c(
+  cpg = "Fitness (CPG)",
+  no_cpg = "Fitness (No CPG)",
+  mean = "Mean Fitness",
+  max = "Max Fitness"
+)
+
+line_colors = c("red", "green", "blue")
+
+cpg_rate_plot_colors <- list(
+  dividing_line_color = "darkcyan",
+  upper_line_color    = "aquamarine",
+  lower_line_color    = "goldenrod"
+)
+```
+
+``` {r fitness_plot_separate_legs, include=FALSE}
+fitness_plot_separate_legs <- 
+  
+  ggplot(data = fitness_summary$separate_legs) +
+  
+  geom_line(size = line_size,
+            mapping = aes(x = generation,
+                          y = fitness,
+                          color = as.factor(num_legs))) +
+  
+  labs(x = "Generations",
+       y = "Fitness (Positive Change in X)",
+       title = "Fitness Over Time of Robots with Varying Numbers of Legs",
+       color = "Number of Legs") +
+  
+  scale_x_continuous(expand = expansion(mult = 0,
+                                        add = c(5, 5))) +
+  
+  scale_y_continuous(expand = expansion(mult = 0,
+                                        add = c(0, 2))) +
+
+  scale_color_manual(values = line_colors) +
+  
+  facet_grid(rows = vars(summary_type),
+             cols = vars(neural_network_type),
+             scales = "fixed",
+             labeller = as_labeller(label_names)) +
+  
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    legend.position = "bottom",
+    legend.title = element_text(face = "bold")) +
+  
+  theme(panel.grid = element_line(color = "black"))
+```
+
+```{r fitness_plot_combined_legs, include=FALSE}
+fitness_plot_combined_legs <- 
+  
+  ggplot(data = fitness_summary$combined_legs) +
+  
+  geom_line(size = line_size,
+            mapping = aes(x = generation,
+                          y = fitness)) +
+  
+  labs(x = "Generations",
+       y = "Fitness (Positive Change in X)",
+       title = "Fitness Over Time of Evolving Robots",
+       color = "Number of Legs") +
+  
+  scale_x_continuous(expand = expansion(mult = 0,
+                                        add = c(5, 5))) +
+  
+  scale_y_continuous(expand = expansion(mult = 0,
+                                        add = c(0, 2))) +
+
+  scale_color_manual(values = c("blue")) +
+  
+  facet_grid(facets = summary_type ~ neural_network_type,
+             scales = "fixed",
+             labeller = as_labeller(label_names)) +
+  
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    legend.position = "bottom",
+    legend.title = element_text(face = "bold")) +
+  
+  theme(panel.grid = element_line(color = "black"))
+```
+
+```{r calculate_segment_positions_function, include=FALSE}
+# Calculates where the line segments in the CPG rate graph should be placed
+calculate_segment_positions <- function(cpg_df, segment_length){
+  min_cpg <- min(cpg_df$cpg_rate)
+  max_cpg <- max(cpg_df$cpg_rate)
+  
+  y_centers <- list(seg1 = filter(cpg_df, cpg_rate == min_cpg)$fitness[1],
+                    seg2 = filter(cpg_df, cpg_rate == max_cpg)$fitness[1])
+  
+  seg1_coords <- list(x = list(start = min_cpg,
+                               end   = min_cpg),
+                      y = list(start = y_centers$seg1 - (segment_length / 2),
+                               end   = y_centers$seg1 + (segment_length / 2)))
+  
+  seg2_coords <- list(x = list(start = max_cpg,
+                               end   = max_cpg),
+                      y = list(start = y_centers$seg2 - (seg_length / 2),
+                               end   = y_centers$seg2 + (seg_length / 2)))
+  
+  coords <- list(seg1 = seg1_coords,
+                 seg2 = seg2_coords)
+  
+  return(coords)
+}
+```
+
+```{r cpg_rate_plot, include=FALSE}
+cpg_rate_plot_mapping <- aes(x = cpg_rate,
+                             y = fitness)
+
+seg_length <- 2
+
+upper_coords <- calculate_segment_positions(cpg_df = cpg_rate_fitness$high,
+                                            segment_length = seg_length)
+
+lower_coords <- calculate_segment_positions(cpg_df = cpg_rate_fitness$low,
+                                            segment_length = seg_length)
+
+cpg_rate_plot <- 
+  
+  ggplot() + 
+  
+  # Dividing Line
+  geom_hline(yintercept = .FITNESS_CUTOFF,
+             color = cpg_rate_plot_colors$dividing_line_color,
+             size  = line_size) +
+  
+  # Upper Line of Fit
+  geom_smooth(data = cpg_rate_fitness$high,
+              mapping = cpg_rate_plot_mapping,
+              method = "loess",
+              se = FALSE,
+              color = cpg_rate_plot_colors$upper_line_color,
+              size = line_size) +
+  
+  geom_segment(mapping = aes(x    = upper_coords$seg1$x$start,
+                             xend = upper_coords$seg1$x$end,
+                             y    = upper_coords$seg1$y$start,
+                             yend = upper_coords$seg1$y$end),
+               color = cpg_rate_plot_colors$upper_line_color,
+               size  = line_size) +
+  
+  geom_segment(mapping = aes(x    = upper_coords$seg2$x$start,
+                             xend = upper_coords$seg2$x$end,
+                             y    = upper_coords$seg2$y$start,
+                             yend = upper_coords$seg2$y$end),
+               color = cpg_rate_plot_colors$upper_line_color,
+               size  = line_size) +
+  
+  # Lower Line of Fit
+  geom_smooth(data = cpg_rate_fitness$low,
+              mapping = cpg_rate_plot_mapping,
+              method = "loess",
+              se = FALSE,
+              color = cpg_rate_plot_colors$lower_line_color,
+              size = line_size) +
+  
+  # Scatter Plot
+  geom_point(data = cpg_rate_fitness$all,
+             mapping = cpg_rate_plot_mapping,
+             size = 1) +
+  
+  # Visuals
+  scale_color_manual(values = line_colors) +
+  
+  scale_x_continuous(breaks = seq(0, 200, by = 25)) +
+  
+  labs(title = "Fitness Compared to CPG Rate after 500 Generations",
+       x = "CPG Rate (Number of Frames Between Each Pulse)",
+       y = "Fitness of Solution") +
+  
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    legend.position = "bottom",
+    legend.title = element_text(face = "bold")) +
+  
+  theme(panel.grid = element_line(color = "black"))
+
+```
+
+```{r show_plots, echo=FALSE, message=FALSE}
+print(fitness_plot_separate_legs)
+print(fitness_plot_combined_legs)
+suppressMessages(print(cpg_rate_plot))
+```
+
+```{r clear_plotting_variables, include=FALSE}
+if (.REMOVE_DATA) {
+  remove(cpg_rate_plot_mapping, seg_length, upper_coords, lower_coords,
+         fitness_summary, cpg_rate_fitness,
+         label_names, line_colors, line_size, cpg_rate_plot_colors)
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
